@@ -152,7 +152,14 @@ export default {
     }
 
     // Si el modelo bloqueó por seguridad, no hay candidates → neutro seguro.
-    const txt = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    // Los modelos que razonan mandan varias partes: nos quedamos con el texto
+    // y descartamos las de pensamiento.
+    const partes = data?.candidates?.[0]?.content?.parts || [];
+    const txt = partes
+      .filter((p) => !p?.thought && typeof p?.text === "string")
+      .map((p) => p.text)
+      .join("")
+      .trim();
     if (!txt)
       return new Response(JSON.stringify({
         mensaje: "…", bando: "neutral", tipo_firstdraft: null,
@@ -160,9 +167,12 @@ export default {
       }), { status: 200, headers: cors });
 
     // Parseo + saneo al esquema (el candado FINAL vive igual en el juego).
-    let obj;
-    try { obj = JSON.parse(txt); } catch {
-      return new Response(JSON.stringify({ error: "red", motivo: "parse" }), { status: 502, headers: cors });
+    const obj = extraerJSON(txt);
+    if (!obj) {
+      // No se pudo parsear: NO tiramos el puente por un tropiezo del modelo.
+      // Devolvemos 200 con algo que validarReaccion() rechaza, así el juego usa
+      // su banco para ESTE mensaje y la conexión sigue viva.
+      return new Response(JSON.stringify({ error: "parse" }), { status: 200, headers: cors });
     }
     // Modo clasificación (Fase 4): devolver solo una categoría válida.
     if (modo === "clasificar") {
@@ -179,6 +189,30 @@ export default {
     return new Response(JSON.stringify(limpio), { status: 200, headers: cors });
   },
 };
+
+// El modelo a veces envuelve el JSON en ```json ... ``` o le antepone una frase.
+// Intentamos parsear directo y, si no, extraemos el primer objeto {...} balanceado
+// (respetando comillas y escapes para no cortar dentro de un texto).
+function extraerJSON(txt) {
+  let s = txt.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+  try { return JSON.parse(s); } catch { /* seguimos con la extracción */ }
+
+  const ini = s.indexOf("{");
+  if (ini === -1) return null;
+  let prof = 0, enTexto = false, escape = false;
+  for (let i = ini; i < s.length; i++) {
+    const c = s[i];
+    if (escape) { escape = false; continue; }
+    if (c === "\\") { escape = true; continue; }
+    if (c === '"') { enTexto = !enTexto; continue; }
+    if (enTexto) continue;
+    if (c === "{") prof++;
+    else if (c === "}" && --prof === 0) {
+      try { return JSON.parse(s.slice(ini, i + 1)); } catch { return null; }
+    }
+  }
+  return null;
+}
 
 // Saneo servidor: recorta y valida etiquetas. (El juego vuelve a validar; doble red.)
 function sanear(o) {
