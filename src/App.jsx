@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import { pedirReaccion, puente, alertaDe, clasificar, FEEDBACK_USUARIO } from "./agentes.js";
+// Para activar el LLM (tras desplegar el proxy de la Fase 2), descomenta:
+// import { activarLLM } from "./agentes_online.js";
 // VERIFIED v3 — Prototipo (UNESCO Youth Hackathon 2026)
 // 🖼️ IMÁGENES (GitHub Pages): agrega entradas con la URL de tu imagen libre.
 // Ej: IMG.npcs.carmen = "/img/carmen.jpg"; IMG.casos.c1 = "/img/banco.jpg";
@@ -27,6 +30,7 @@ medio: { handle: "noticias24_verif", avatar: "📰", rol: "oficial", credulidad:
 ong: { handle: "salud_comunitaria_ong", avatar: "🏥", rol: "oficial", credulidad: 0, nombre: { es: "Salud Comunitaria", en: "Community Health" }, bio: { es: "✔ ONG registrada, 12 años, transparencia publicada.", en: "✔ Registered NGO, 12 years, published transparency." } },
 parodia: { handle: "el_sarcastico_mx", avatar: "😏", rol: "influencer", credulidad: 0.1, nombre: { es: "El Sarcástico", en: "The Sarcastic" }, bio: { es: "PARODIA declarada 😏 humor deportivo. NO somos noticias reales (lo dice aquí, en la bio).", en: "Declared PARODY 😏 sports humor. NOT real news (it says so right here, in the bio)." } },
 sombra: { handle: "info_urgente_mx", avatar: "🕶️", rol: "villano", credulidad: 0, nombre: { es: "info_urgente_mx", en: "info_urgente_mx" }, bio: { es: "⚠️ Cuenta nueva, anónima… tuya. Nadie sabe quién está detrás. Todavía.", en: "⚠️ New, anonymous account… yours. Nobody knows who is behind it. Yet." } },
+troll: { handle: "vs_los_del_sur", avatar: "👺", rol: "bot", credulidad: 0, nombre: { es: "AntiSur", en: "AntiSouth" }, bio: { es: "⚠️ Cuenta creada hace 3 días, sin foto real, puros insultos a la gente del sur. Handle agresivo, cero información. Señales de troll de manual.", en: "⚠️ Account created 3 days ago, no real photo, pure insults toward southerners. Aggressive handle, zero info. Textbook troll signals." } },
 arq: { handle: "el_arquitecto", avatar: "🎭", rol: "villano", credulidad: 0, nombre: { es: "El Arquitecto", en: "The Architect" }, bio: { es: "??? · La cuenta detrás de las cuentas.", en: "??? · The account behind the accounts." } },
 };
 const CIVILES = ["carmen", "mama", "lupe", "raul", "flores", "chuy", "karla", "padre", "mia"];
@@ -57,6 +61,12 @@ ia_voz: { emoji: "🎙️", nombre: { es: "Voz clonada con IA", en: "AI voice cl
 deepfake: { emoji: "🎭", nombre: { es: "Deepfake", en: "Deepfake" }, entrada: { es: "Video del alcalde diciendo lo que nunca dijo. Parpadeo raro, labios desfasados y la prueba de oro: LA CUENTA OFICIAL NO PUBLICÓ NADA. La fuente mata al deepfake.", en: "Video of the mayor saying what he never said. Odd blinking, off-sync lips, and the golden test: THE OFFICIAL ACCOUNT POSTED NOTHING. The source kills the deepfake." } },
 satira: { emoji: "😏", nombre: { es: "Sátira sin contexto", en: "Satire out of context" }, entrada: { es: "La sátira NO busca engañar — está al inicio de la escala de First Draft. El problema es cuando viaja sin contexto y alguien la toma en serio. Checa siempre: ¿la cuenta se declara parodia?", en: "Satire does NOT aim to deceive — it sits at the start of First Draft's scale. The problem is when it travels without context and someone takes it seriously. Always check: does the account declare itself parody?" } },
 alto: { emoji: "🧯", nombre: { es: "Protocolo ALTO (SIFT)", en: "ALTO Protocol (SIFT)" }, entrada: { es: "Mi método anticrisis, adaptado de SIFT: Aguanta, Localiza la fuente, Tracea la evidencia, Opina con pruebas. Cuatro pasos y el pánico se apaga.", en: "My anti-crisis method, adapted from SIFT: Stop, Investigate the source, Find coverage, Trace the evidence. Four steps and the panic dies." } },
+acceso: { emoji: "🛰️", nombre: { es: "Fuente confiable", en: "Reliable source" }, entrada: { es: "Tienes DERECHO a información creíble. Reconócela: cuenta verificada, tono neutro, cita a la fuente oficial, sin prisa ni drama. Reportar lo verdadero también hace daño — déjalo vivir.", en: "You have a RIGHT to credible information. Spot it: verified account, neutral tone, cites the official source, no rush, no drama. Reporting the truth also harms — let it live." } },
+odio: { emoji: "🌠", nombre: { es: "Discurso de odio", en: "Hate speech" }, entrada: { es: "No es 'opinión fuerte': ataca a personas por lo que SON (origen, género, creencia). Repórtalo, y si puedes, responde con contra-discurso: bajar el tono sin insultar desarma más que el silencio.", en: "It is not 'a strong opinion': it attacks people for what they ARE (origin, gender, belief). Report it, and if you can, answer with counter-speech: lowering the tone without insults disarms more than silence." } },
+genero: { emoji: "🕳️", nombre: { es: "Daño de género con IA", en: "Gender harm via AI" }, entrada: { es: "Los deepfakes se usan sobre todo para humillar a mujeres con contenido falso. Detéctalo como IA… y nómbralo: no es 'chisme', es violencia digital. No lo reenvíes, repórtalo y avisa a la persona.", en: "Deepfakes are mostly used to humiliate women with fake content. Detect it as AI… and name it: it is not 'gossip', it is digital violence. Do not forward it, report it and warn the person." } },
+etica: { emoji: "🌟", nombre: { es: "Creación ética", en: "Ethical creation" }, entrada: { es: "Antes de publicar o reenviar: ¿lo verifiqué? ¿de quién es? ¿a quién puede dañar? Crear con responsabilidad es el otro lado de detectar. Tú también eres una fuente.", en: "Before posting or forwarding: did I verify it? whose is it? who could it harm? Creating responsibly is the flip side of detecting. You are a source too." } },
+empodera: { emoji: "🌌", nombre: { es: "Empoderamiento digital", en: "Digital empowerment" }, entrada: { es: "No solo defiendas: construye. Compartir info verificada a tiempo inmuniza a tu gente. Y ojo: a veces lo verdadero lo entierra el algoritmo — buscarlo también es tu poder.", en: "Don't just defend: build. Sharing verified info in time immunizes your people. And beware: sometimes the truth is buried by the algorithm — seeking it out is your power too." } },
+paz: { emoji: "🕊️", nombre: { es: "Reconstruir la confianza", en: "Rebuilding trust" }, entrada: { es: "Ganar no es callar al otro: es reconstruir el puente. Escuchar, explicar sin humillar y reconciliar al grupo polarizado. La meta final no es tener razón, es sanar a la comunidad.", en: "Winning is not silencing the other: it is rebuilding the bridge. Listen, explain without humiliating, reconcile the polarized group. The final goal is not being right, it is healing the community." } },
 };
 const CASOS = [
 { id: "c1", fake: true, tacticaId: "urgencia", tipos: ["impostor", "fabricado"], motiv: "propaganda", autorId: "n0ticias", img: "🏦", grad: "linear-gradient(135deg,#111827,#7f1d1d)",
@@ -84,6 +94,21 @@ titular: { es: "ÚLTIMO MINUTO: el alcalde declara los tacos 'patrimonio de la h
 imagenRes: { mal: false, txt: { es: "Montaje con humor evidente. La cuenta se declara PARODIA en su bio.", en: "Obviously humorous edit. The account declares PARODY in its bio." } },
 iaRes: { mal: false, txt: { es: "Edición cómica, sin intención de engañar.", en: "Comedic edit, no intent to deceive." } },
 betoTip: { es: "Jaja no, primo: es cuenta de PARODIA (léele la bio). La sátira no busca engañar — First Draft la pone al inicio de la escala. Pero ojo: viajando sin contexto, confunde. No se reporta: se disfruta con criterio.", en: "Haha no, cousin: it is a PARODY account (read the bio). Satire does not aim to deceive — First Draft puts it at the start of the scale. But careful: traveling without context, it confuses. You do not report it: you enjoy it critically." } },
+{ id: "c16", fake: true, odioCaso: true, tacticaId: "odio", tipos: ["odio"], motiv: "provocar", autorId: "troll", img: "🚫", grad: "linear-gradient(135deg,#450a0a,#1c1917)",
+titular: { es: "😤 'La gente del sur no merece ir a la final. Habría que correrlos de la ciudad.' — ¿ustedes qué opinan? 👇", en: "😤 'Southerners don't deserve the final. We should run them out of town.' — what do you all think? 👇" },
+imagenRes: { mal: true, txt: { es: "No es opinión sobre el futbol: es un ataque a personas por su origen. Eso es discurso de odio.", en: "This is not a soccer opinion: it attacks people for their origin. That is hate speech." } },
+iaRes: { mal: false, txt: { es: "Cuenta troll: 3 días de vida, sin foto, puro ataque. Busca que te enganches y lo repartas.", en: "Troll account: 3 days old, no photo, pure attack. It wants you to engage and spread it." } },
+betoTip: { es: "Esto NO es 'opinión fuerte': ataca a gente por lo que ES. Repórtalo por discurso de odio. Y si respondes, hazlo con contra-discurso: baja el tono, no insultes de vuelta.", en: "This is NOT a 'strong opinion': it attacks people for what they ARE. Report it as hate speech. And if you reply, use counter-speech: lower the tone, don't insult back." } },
+{ id: "c17", fake: true, tacticaId: "genero", tipos: ["manipulado", "fabricado"], motiv: "provocar", autorId: "sombra", img: "🎭", grad: "linear-gradient(135deg,#831843,#111827)",
+titular: { es: "😏 'MIREN a la 'maestra' profe.lena en este video… no es tan santita' — (video con su cara pegada por IA)", en: "😏 'LOOK at 'teacher' profe.lena in this video… not so saintly' — (video with her face pasted by AI)" },
+imagenRes: { mal: true, txt: { es: "Cara real de la profa. Lena montada sobre otro cuerpo/video. Es un deepfake para humillarla.", en: "Prof. Lena's real face pasted onto another body/video. It's a deepfake made to humiliate her." } },
+iaRes: { mal: true, txt: { es: "🤖 Deepfake facial: bordes de la cara borrosos, parpadeo antinatural, iluminación que no cuadra.", en: "🤖 Face deepfake: blurry face edges, unnatural blinking, mismatched lighting." } },
+betoTip: { es: "Esto no es 'chisme', primo: es violencia digital de género. Los deepfakes se usan sobre todo para humillar a mujeres. NO lo reenvíes: repórtalo y avísale a la profa. Lena.", en: "This isn't 'gossip', cousin: it's gender-based digital violence. Deepfakes are mostly used to humiliate women. Do NOT forward it: report it and warn Prof. Lena." } },
+{ id: "c18", fake: false, accesoCaso: true, autorId: "clima", img: "🌊", grad: "linear-gradient(135deg,#0c4a6e,#111827)",
+titular: { es: "ℹ️ Protección Civil publica el mapa oficial de rutas seguras al estadio el domingo. (poco alcance: el algoritmo no lo empuja)", en: "ℹ️ Civil Protection posts the official map of safe routes to the stadium Sunday. (low reach: the algorithm doesn't push it)" },
+imagenRes: { mal: false, txt: { es: "Fuente oficial verificada. Información útil y verdadera… que casi nadie está viendo.", en: "Verified official source. Useful, true information… that almost no one is seeing." } },
+iaRes: { mal: false, txt: { es: "Sin señales de IA. Es real. El problema no es que sea falso: es que está enterrado.", en: "No AI signals. It's real. The problem isn't that it's fake: it's that it's buried." } },
+betoTip: { es: "Ojo: lo VERDADERO y útil a veces no se ve porque el algoritmo premia el escándalo, no la calma. NO lo reportes: al revés, COMPÁRTELO. Empujar lo verdadero también es tu poder.", en: "Watch this: the TRUE and useful stuff sometimes isn't seen because the algorithm rewards outrage, not calm. Do NOT report it: instead, SHARE it. Pushing the truth is your power too." } },
 { id: "c5", fake: true, tacticaId: "contexto", tipos: ["contexto"], motiv: "lucro", autorId: "futgossip", img: "🍾", grad: "linear-gradient(135deg,#4c1d95,#111827)",
 titular: { es: "😱 EXCLUSIVA: el capitán de la selección de FIESTA a las 3am… ¡ANTES DE LA SEMIFINAL! La afición merece saberlo.", en: "😱 EXCLUSIVE: the national team captain PARTYING at 3am… BEFORE THE SEMIFINAL! Fans deserve to know." },
 imagenRes: { mal: true, txt: { es: "Búsqueda inversa: la foto es de la celebración de un título… en 2022.", en: "Reverse search: the photo is from a title celebration… in 2022." } },
@@ -130,19 +155,62 @@ imagenRes: { mal: true, txt: { es: "El video no existe en ninguna fuente oficial
 iaRes: { mal: true, txt: { es: "🤖 DEEPFAKE: el alcalde casi no parpadea, sus labios van fuera de sincronía y la voz suena metálica.", en: "🤖 DEEPFAKE: the mayor barely blinks, his lips are out of sync, and the voice sounds metallic." } },
 betoTip: { es: "Prueba de oro: la cuenta oficial NO publicó nada. Parpadeo + labios desfasados = deepfake. YA.", en: "Golden test: the official account posted NOTHING. Blinking + off-sync lips = deepfake. NOW." } },
 ];
+const TIPO_EXPLICA = {
+contexto: { es: "Esto es CONTEXTO FALSO 🌀: foto o dato real, pero contado con mentira. Lo más común. Casi siempre buscan clics o coraje.", en: "This is FALSE CONTEXT 🌀: real photo or fact, wrapped in a lie. The most common one. Usually chasing clicks or anger." },
+impostor: { es: "Esto es IMPOSTOR 🎭: se disfraza de fuente confiable (mira el nombre con truco). Motivación: que les creas por la 'marca'.", en: "This is IMPOSTER 🎭: it disguises itself as a trusted source (check the tricky name). Motivation: making you trust the 'brand'." },
+fabricado: { es: "Esto es FABRICADO 🏗️: inventado 100% desde cero. Suele ir por tu dinero o por meter miedo.", en: "This is FABRICATED 🏗️: made up 100% from scratch. Usually after your money or to spread fear." },
+manipulado: { es: "Esto es MANIPULADO 🔧: algo real, editado para engañar (incluye IA: voz, video). Motivación: provocar o manipular.", en: "This is MANIPULATED 🔧: something real, edited to deceive (includes AI: voice, video). Motivation: to provoke or manipulate." },
+conexion: { es: "Esto es CONEXIÓN FALSA ⛓️: el título no cuadra con el contenido. Puro anzuelo para clics.", en: "This is FALSE CONNECTION ⛓️: headline doesn't match the content. Pure clickbait." },
+enganoso: { es: "Esto es ENGAÑOSO 🌀: usa datos a medias para vender o convencer. Motivación casi siempre: lucro.", en: "This is MISLEADING 🌀: uses half-truths to sell or convince. The motivation is almost always: profit." },
+};
+const BLOQUES = [
+{ id: "hecho", emoji: "🟦", label: { es: "Empezar con el HECHO", en: "Start with the FACT" }, frag: { es: "✅ La verdad primero:", en: "✅ The truth first:" }, usaVerdad: true },
+{ id: "fuente", emoji: "📊", label: { es: "Citar la FUENTE oficial", en: "Cite the official SOURCE" }, frag: { es: "Lo confirma la fuente oficial verificada.", en: "Confirmed by the verified official source." } },
+{ id: "mito", emoji: "⚠️", label: { es: "Advertir del mito (1 vez)", en: "Warn about the myth (once)" }, frag: { es: "Sí, circula lo contrario, pero es falso.", en: "Yes, the opposite is going around, but it's false." } },
+{ id: "falacia", emoji: "🧠", label: { es: "Explicar la TRAMPA", en: "Explain the TRICK" }, frag: { es: "Fíjate cómo te apura y te asusta para que no verifiques.", en: "Notice how it rushes and scares you so you won't verify." } },
+{ id: "refuerzo", emoji: "✅", label: { es: "Cerrar reforzando el hecho", en: "Close reinforcing the fact" }, frag: { es: "Quédate con el dato real, no con el rumor. 💪", en: "Keep the real fact, not the rumor. 💪" } },
+{ id: "empatia", emoji: "🫂", label: { es: "Hablar con empatía", en: "Speak with empathy" }, frag: { es: "Sé que preocupa —a mí también me pasó—, con calma.", en: "I know it worries you —it happened to me too—, stay calm." } },
+{ id: "grito", emoji: "🔁", label: { es: "REPETIR el mito en mayúsculas", en: "REPEAT the myth in caps" }, frag: { es: "🔁 ¡¡ES FALSO EL RUMOR QUE ANDA DICIENDO LO CONTRARIO!! ¡NO LO CREAN!!", en: "🔁 THE RUMOR SAYING OTHERWISE IS FALSE!! DON'T BELIEVE IT!!" }, malo: true },
+{ id: "burla", emoji: "😡", label: { es: "Burlarte del que lo creyó", en: "Mock whoever believed it" }, frag: { es: "😡 Jaja qué inocentes los que se lo tragaron 🤡.", en: "😡 Lol how gullible, the ones who fell for it 🤡." }, malo: true },
+];
+function puntuarContra(seq) {
+if (!seq.length) return { score: 0, tier: "vacio", notas: [] };
+const has = (id) => seq.includes(id);
+const first = seq[0], last = seq[seq.length - 1];
+const startsFact = first === "hecho" || first === "fuente";
+const endsFact = last === "refuerzo" || last === "hecho";
+const notas = [];
+let score = 0;
+if (startsFact) { score += 3; notas.push({ ok: true, k: "empiezaHecho" }); } else { notas.push({ ok: false, k: "noEmpiezaHecho" }); }
+if (has("falacia")) { score += 2; notas.push({ ok: true, k: "explicaFalacia" }); }
+if (endsFact) { score += 2; notas.push({ ok: true, k: "cierraHecho" }); }
+if (has("fuente")) score += 1;
+if (has("empatia") && !has("burla")) score += 1;
+if (has("mito") && seq.filter((x) => x === "mito").length === 1 && first !== "mito") score += 1;
+if (first === "mito" || first === "grito") { score -= 2; notas.push({ ok: false, k: "empiezaMito" }); }
+if (has("grito")) { score -= 4; notas.push({ ok: false, k: "gritaMito" }); }
+if (has("burla")) { score -= 4; notas.push({ ok: false, k: "burla" }); }
+const sandwich = startsFact && has("falacia") && endsFact && !has("grito") && !has("burla");
+if (sandwich) { score += 2; notas.push({ ok: true, k: "sandwich" }); }
+const tier = score >= 7 ? "excelente" : score >= 4 ? "buena" : score >= 1 ? "floja" : "contra";
+return { score, tier, notas, sandwich };
+}
 const CRISIS = {
 c10: { nombre: { es: "PÁNICO DEL AGUA", en: "WATER PANIC" },
 alerta: { es: "🚨 El rumor del agua explotó: la gente está vaciando los supermercados", en: "🚨 The water rumor blew up: people are emptying the supermarkets" },
 fuente: { es: "Cuenta oficial del Sistema de Aguas: 'El suministro opera con NORMALIDAD. No hay cortes programados.'", en: "Official Water System account: 'Supply is operating NORMALLY. No cuts are scheduled.'" },
-panico: { npc: "raul", texto: { es: "Acabo de pasar por el súper y está VACÍO el pasillo de garrafones… ¿entonces sí era cierto?? 😰", en: "Just drove past the store and the water aisle is EMPTY… so it was true?? 😰" } } },
+panico: { npc: "raul", texto: { es: "Acabo de pasar por el súper y está VACÍO el pasillo de garrafones… ¿entonces sí era cierto?? 😰", en: "Just drove past the store and the water aisle is EMPTY… so it was true?? 😰" } },
+dano: { titular: { es: "Tu deepfake del toque de queda provoco panico, saqueos y colapso de confianza en las autoridades.", en: "Your curfew deepfake triggered panic, looting and a collapse of trust in the authorities." }, real: { es: "Real: rumores y videos falsos han detonado disturbios que escalaron a crisis institucionales.", en: "Real: false rumors and videos have set off riots that escalated into institutional crises." } }, cons: { npc: "raul", titular: { es: "🚑 3 personas hospitalizadas por beber 'agua purificada casera' con cloro tras el rumor viral", en: "🚑 3 people hospitalized after drinking homemade 'purified water' with bleach following the viral rumor" }, real: { es: "Pasó de verdad: en 2020 un rumor de 'cura milagrosa' causó más de 700 muertes por metanol en un solo país.", en: "It really happened: in 2020 a 'miracle cure' rumor caused 700+ methanol deaths in a single country." }, afecta: "raul" } },
 c12: { nombre: { es: "CAOS DE LA FINAL", en: "FINAL CHAOS" },
 alerta: { es: "🚨 La 'inundación del estadio' se viraliza: aficionados malbaratan sus boletos en pánico", en: "🚨 The 'flooded stadium' goes viral: fans panic-selling their tickets" },
 fuente: { es: "Cuenta oficial de la FIFA y del estadio: 'El recinto está en condiciones ÓPTIMAS. La final va.'", en: "Official FIFA and stadium accounts: 'The venue is in OPTIMAL condition. The final is on.'" },
-panico: { npc: "mia", texto: { es: "¡¿Es en serio lo del estadio?! Estoy a punto de vender mis boletos a mitad de precio 😭", en: "Is the stadium thing real?! I am about to sell my tickets at half price 😭" } } },
+panico: { npc: "mia", texto: { es: "¡¿Es en serio lo del estadio?! Estoy a punto de vender mis boletos a mitad de precio 😭", en: "Is the stadium thing real?! I am about to sell my tickets at half price 😭" } },
+cons: { npc: "mia", titular: { es: "💸 Cientos malbaratan boletos reales por miedo a una 'inundación' que nunca ocurrió — reventa gana millones", en: "💸 Hundreds dump real tickets fearing a 'flood' that never happened — scalpers make millions" }, real: { es: "El pánico viral mueve dinero real: quien inventa el miedo casi siempre lo está monetizando.", en: "Viral panic moves real money: whoever invents the fear is almost always cashing in on it." }, afecta: "mia" } },
 c14: { nombre: { es: "EL DEEPFAKE DEL ALCALDE", en: "THE MAYOR DEEPFAKE" },
 alerta: { es: "🚨 El 'toque de queda' se propaga: negocios cerrando, calles en pánico", en: "🚨 The 'curfew' is spreading: businesses closing, streets in panic" },
 fuente: { es: "Cuenta oficial del municipio: 'El video es FALSO. No existe ningún toque de queda. Denuncien la publicación.'", en: "Official city account: 'The video is FAKE. There is no curfew. Please report the post.'" },
-panico: { npc: "chuy", texto: { es: "Ya cerré el taller por lo del toque de queda… ¿o es mentira? Ya no sé qué creer 😩", en: "I closed the shop over the curfew… or is it fake? I do not know what to believe anymore 😩" } } },
+panico: { npc: "chuy", texto: { es: "Ya cerré el taller por lo del toque de queda… ¿o es mentira? Ya no sé qué creer 😩", en: "I closed the shop over the curfew… or is it fake? I do not know what to believe anymore 😩" } },
+cons: { npc: "chuy", titular: { es: "🔥 Turba enardecida por el video falso destroza una caseta y agrede a un inocente antes de la final", en: "🔥 Mob enraged by the fake video wrecks a booth and attacks an innocent man before the final" }, real: { es: "Real y trágico: rumores por mensajería han provocado linchamientos de personas inocentes en varios países.", en: "Real and tragic: messaging-app rumors have triggered lynchings of innocent people in several countries." }, afecta: "chuy" } },
 };
 const LORE = [
 { es: "🕵️ EVIDENCIA 1/3 — Las cuentas que tumbaste se crearon el mismo día, desde el mismo rango de IPs. No es un loco suelto: es una operación.", en: "🕵️ EVIDENCE 1/3 — The accounts you took down were created the same day, same IP range. Not a lone crank: an operation." },
@@ -153,6 +221,17 @@ const BITACORA_P1 = {
 es: "📓 PÁGINA 1 — Por qué existe esta libreta.\n\nEn 2019 le mandé a mi abuelo Ramón un link de 'InverCoin: duplica tus ahorros'. Se veía profesional. No lo verifiqué.\n\nPerdió $80,000. Todo lo de su retiro.\n\nNunca me lo reclamó. Eso fue lo peor.\n\nDesde entonces documento cada táctica que encuentro. Esta libreta es mi manera de pagarle. Ahora también es tuya.\n\n— Beto",
 en: "📓 PAGE 1 — Why this notebook exists.\n\nIn 2019 I sent my grandpa Ramón a link: 'InverCoin: double your savings'. It looked professional. I did not verify it.\n\nHe lost $80,000. His whole retirement.\n\nHe never blamed me. That was the worst part.\n\nSince then I document every tactic I find. This notebook is how I pay him back. Now it is yours too.\n\n— Beto",
 };
+const MISIONES_MIL = [
+{ id: "m1", est: "🛰️", num: 1, tema: { es: "El acceso a la información", en: "Access to information" }, nota: { es: "Tienes derecho a información confiable. Saber reconocer una fuente creíble es tu primer escudo.", en: "You have a right to reliable information. Spotting a credible source is your first shield." }, lec: ["acceso"] },
+{ id: "m2", est: "🌬️", num: 2, tema: { es: "Los vientos de la libertad de expresión", en: "The winds of free expression" }, nota: { es: "Ojo aquí, primo: no todo lo que ofende se reporta. La sátira y la opinión también tienen su lugar.", en: "Careful here, cousin: not everything offensive gets reported. Satire and opinion have their place too." }, lec: ["satira"] },
+{ id: "m3", est: "🌠", num: 3, tema: { es: "Los meteoros del discurso de odio", en: "The meteors of hate speech" }, nota: { es: "Cuando el ataque es a lo que alguien ES, no basta callar: repórtalo y responde con contra-discurso.", en: "When the attack targets what someone IS, silence isn't enough: report it and answer with counter-speech." }, lec: ["odio"] },
+{ id: "m4", est: "☄️", num: 4, tema: { es: "Los asteroides de la desinformación", en: "The asteroids of disinformation" }, nota: { es: "El corazón de todo. Aprende a distinguir lo falso de lo real antes de compartir.", en: "The heart of it all. Learn to tell fake from real before you share." }, lec: ["urgencia", "miedo", "fraude", "contexto", "autoridad", "influencer", "conspiracion", "alto"] },
+{ id: "m5", est: "🕳️", num: 5, tema: { es: "El agujero del daño de género", en: "The wormhole of gender harm" }, nota: { es: "Los deepfakes se usan para humillar, sobre todo a mujeres. No es chisme: es violencia digital.", en: "Deepfakes are used to humiliate, mostly women. It's not gossip: it's digital violence." }, lec: ["genero"] },
+{ id: "m6", est: "🌟", num: 6, tema: { es: "La estrella polar de la IA", en: "The North Star of AI" }, nota: { es: "Lo nuevo. Fotos, voces y videos hechos por máquinas. Aquí el ojo entrenado vale oro.", en: "The new frontier. Machine-made photos, voices and videos. A trained eye is gold here." }, lec: ["ia_imagen", "ia_voz", "deepfake"] },
+{ id: "m7", est: "✨", num: 7, tema: { es: "La estrella de la creación ética", en: "The star of ethical creation" }, nota: { es: "Detectar es la mitad. La otra: crear y compartir con responsabilidad. Tú también eres una fuente.", en: "Detecting is half of it. The other half: creating and sharing responsibly. You are a source too." }, lec: ["etica"] },
+{ id: "m8", est: "🌌", num: 8, tema: { es: "La galaxia del empoderamiento digital", en: "The galaxy of digital empowerment" }, nota: { es: "No solo defiendas: construye. Compartir la verdad a tiempo inmuniza a tu gente.", en: "Don't just defend: build. Sharing the truth in time immunizes your people." }, lec: ["empodera"] },
+{ id: "m9", est: "🕊️", num: 9, tema: { es: "El puerto del peacebuilding", en: "The harbor of peacebuilding" }, nota: { es: "Ganar no es callar al otro: es reconstruir el puente. La meta final es sanar a la comunidad.", en: "Winning is not silencing the other: it is rebuilding the bridge. The final goal is healing the community." }, lec: ["paz"] },
+];
 const RANGOS = [
 { xp: 0, emoji: "🥚", n: { es: "Novato", en: "Rookie" } },
 { xp: 60, emoji: "👁️", n: { es: "Ojo Entrenado", en: "Trained Eye" } },
@@ -193,7 +272,8 @@ appNews: "Noticias", appBita: "Bitácora", bloqueada: "🔒 Todavía no disponib
 comoJugar: "Tu misión:", comoJugarTexto: " caza los fakes desde el menú ⋯ de cada post (la razón del reporte importa), protege a tu gente en WhatsUp y tumba la credibilidad del Arquitecto a 0.",
 feed: "Feed", dms: "DMs", resuelto: "resuelto",
 verComentarios: "Ver los", comentarios: "comentarios",
-reportar: "🚩 Reportar", compartirOp: "📤 Compartir", reenviarBeto: "📩 Reenviar a Beto", confiableOp: "✓ Marcar como confiable", cancelar: "Cancelar",
+reportar: "🚩 Reportar", compartirOp: "📤 Compartir", reenviarBeto: "📩 Reenviar a Beto", publicarCorr: "✍️ Publicar corrección", cancelar: "Cancelar",
+contraTitulo: "✍️ Arma tu corrección", contraSub: "Construye tu mensaje pieza por pieza. El ORDEN importa: algunas combinaciones desarman el mito… otras lo empeoran.", contraPreview: "vista previa", contraVacio: "Toca los bloques de abajo para ir armando tu mensaje…", contraBloques: "Bloques (tócalos en el orden que quieras):", contraBorrar: "borrar último", contraPublicarBtn: "🚀 Publicar corrección", contraOk: "Corrección efectiva ✨ la comunidad te apoya", contraMal: "Salió el tiro por la culata ⚠️", contraChipOk: "✨ corregida", contraChipMal: "⚠️ empeoró", tuHandle: "tú", contraRespondiendo: "respondiendo a", contraApoyo: "🙌 la comunidad te apoya", contraSinFuerza: "😕 sin fuerza",
 porQueReportas: "¿Por qué reportas esta publicación?",
 rFalso: "Información falsa", rFraude: "Fraude o estafa", rSupl: "Suplantación de identidad", rSpam: "Spam o cuenta falsa", rIa: "Contenido de IA sin etiquetar", rNogusta: "No me gusta",
 manada: "🫂 Pedir refuerzos al grupo (reporte en manada)",
@@ -242,7 +322,8 @@ protoObtn: "🚩 Reportar + publicar corrección",
 protoListo: "✅ CRISIS CONTENIDA", protoFallo: "💔 El daño está hecho: la plataforma la eliminó… tarde.",
 quedan: "Se propaga… actúa rápido",
 abrirProto: "🚨 ABRIR PROTOCOLO ALTO",
-bitaTitulo: "Bitácora de Beto", bitaProg: "TU PROGRESO", bitaLec: "LECCIONES DE CAMPO", bitaInv: "LA INVESTIGACIÓN",
+bitaTitulo: "Bitácora de Beto", bitaProg: "Mi rango", bitaLec: "LECCIONES DE CAMPO", bitaInv: "El expediente",
+bitaRango: "Mi rango de cazador", bitaMapa: "Mi mapa de misiones MIL", bitaMapaSub: "las voy anotando conforme las vives — cada estrella es un frente distinto", bitaPorAprender: "por descubrir", bitaMision: "MISIÓN UNESCO", bitaViva: "vívela ahí afuera y la anoto aquí",
 bitaSig: "siguiente nivel", bitaHerr: "HERRAMIENTAS",
 h1: "👤 Leer perfiles (nivel 1)", h2: "🖼️ Búsqueda inversa (nivel 2)", h3: "🤖 Detector de IA (nivel 3)", h4: "🫂 Reporte en manada (nivel 4)", h5: "🧘 Maestría: la infodemia crece a la mitad (nivel 5)",
 bitaCaos: "caos en la comunidad", bitaCred: "credibilidad del Arquitecto",
@@ -251,8 +332,9 @@ invBloq: "Se necesita más evidencia: tumba más cuentas de la red (strikes",
 finalesT: "FINALES DESCUBIERTOS", certT: "CERTIFICADO DE VERIFICADOR", tacticasT: "Lecciones que dominaste",
 precision: "precisión", protegidas: "protegidos",
 diario: "El Observador Global", newsFooter: "El periódico narra TU partida. Léelo: presagia tu final.",
-deNuevo: "Jugar de nuevo ↺",
-tpContexto: "✂️ Contexto falso", tpImpostor: "🎭 Contenido impostor", tpFabricado: "🏗️ Contenido fabricado", tpManipulado: "🔧 Contenido manipulado", tpConexion: "⛓️ Conexión falsa", tpSatira: "😏 Sátira o parodia", tpEnganoso: "🌀 Contenido engañoso",
+deNuevo: "Jugar de nuevo ↺", tutoOk: "¡Va! 👍", tutoListo: "¡Listo! 🚀", tutoSaltar: "Saltar tutorial", tutoTuTurno: "toca lo que brilla", tutoSiguiente: "saltar paso", consTitulo: "ÚLTIMA HORA", consEnVivo: "EN VIVO", consReal: "Esto pasó en la vida real", consEntendido: "Lo tengo 💔",
+tpContexto: "✂️ Contexto falso", tpImpostor: "🎭 Contenido impostor", tpFabricado: "🏗️ Contenido fabricado", tpManipulado: "🔧 Contenido manipulado", tpConexion: "⛓️ Conexión falsa", tpSatira: "😏 Sátira o parodia", tpEnganoso: "🌀 Contenido engañoso", tpOdio: "🌠 Discurso de odio",
+contraDiscurso: "🕊️ Responder con contra-discurso",
 porQueTipo: "Diagnóstico: ¿qué tipo de contenido problemático es?",
 satiraRep: "Es una cuenta de PARODIA declarada: la sátira no infringe normas. Compártela con criterio 😉",
 radioT: "📸 RADIOGRAFÍA DEL ENGAÑO", radioTipo: "Tipo (First Draft)", radioTec: "Técnica psicológica", radioMotiv: "¿Quién gana?", radioNota: "Así te la aplicaron. Ahora ya la conoces.",
@@ -275,7 +357,8 @@ appNews: "News", appBita: "Notebook", bloqueada: "🔒 Not available yet",
 comoJugar: "Your mission:", comoJugarTexto: " hunt fakes from each post's ⋯ menu (the report reason matters), protect your people on WhatsUp, and drive the Architect's credibility to 0.",
 feed: "Feed", dms: "DMs", resuelto: "resolved",
 verComentarios: "View all", comentarios: "comments",
-reportar: "🚩 Report", compartirOp: "📤 Share", reenviarBeto: "📩 Forward to Beto", confiableOp: "✓ Mark as trustworthy", cancelar: "Cancel",
+reportar: "🚩 Report", compartirOp: "📤 Share", reenviarBeto: "📩 Forward to Beto", publicarCorr: "✍️ Publish a correction", cancelar: "Cancel",
+contraTitulo: "✍️ Build your correction", contraSub: "Build your message piece by piece. ORDER matters: some combinations disarm the myth… others make it worse.", contraPreview: "preview", contraVacio: "Tap the blocks below to build your message…", contraBloques: "Blocks (tap them in any order):", contraBorrar: "delete last", contraPublicarBtn: "🚀 Publish correction", contraOk: "Effective correction ✨ the community backs you", contraMal: "It backfired ⚠️", contraChipOk: "✨ corrected", contraChipMal: "⚠️ worsened", tuHandle: "you", contraRespondiendo: "replying to", contraApoyo: "🙌 community backs you", contraSinFuerza: "😕 no traction",
 porQueReportas: "Why are you reporting this post?",
 rFalso: "False information", rFraude: "Fraud or scam", rSupl: "Impersonation", rSpam: "Spam or fake account", rIa: "Unlabeled AI content", rNogusta: "I just dislike it",
 manada: "🫂 Ask the group for backup (pack report)",
@@ -324,7 +407,8 @@ protoObtn: "🚩 Report + post correction",
 protoListo: "✅ CRISIS CONTAINED", protoFallo: "💔 The damage is done: the platform removed it… too late.",
 quedan: "It is spreading… act fast",
 abrirProto: "🚨 OPEN ALTO PROTOCOL",
-bitaTitulo: "Beto's Notebook", bitaProg: "YOUR PROGRESS", bitaLec: "FIELD LESSONS", bitaInv: "THE INVESTIGATION",
+bitaTitulo: "Beto's Notebook", bitaProg: "My rank", bitaLec: "FIELD LESSONS", bitaInv: "The case file",
+bitaRango: "My hunter rank", bitaMapa: "My map of MIL missions", bitaMapaSub: "I jot them down as you live them — each star is a different front", bitaPorAprender: "yet to discover", bitaMision: "UNESCO MISSION", bitaViva: "live it out there and I note it here",
 bitaSig: "next level", bitaHerr: "TOOLS",
 h1: "👤 Read profiles (level 1)", h2: "🖼️ Reverse image search (level 2)", h3: "🤖 AI detector (level 3)", h4: "🫂 Pack report (level 4)", h5: "🧘 Mastery: infodemic grows at half speed (level 5)",
 bitaCaos: "community chaos", bitaCred: "Architect's credibility",
@@ -333,8 +417,9 @@ invBloq: "More evidence needed: take down more network accounts (strikes",
 finalesT: "ENDINGS DISCOVERED", certT: "VERIFIER CERTIFICATE", tacticasT: "Lessons you mastered",
 precision: "accuracy", protegidas: "protected",
 diario: "The Global Observer", newsFooter: "The paper narrates YOUR run. Read it: it foreshadows your ending.",
-deNuevo: "Play again ↺",
-tpContexto: "✂️ False context", tpImpostor: "🎭 Imposter content", tpFabricado: "🏗️ Fabricated content", tpManipulado: "🔧 Manipulated content", tpConexion: "⛓️ False connection", tpSatira: "😏 Satire or parody", tpEnganoso: "🌀 Misleading content",
+deNuevo: "Play again ↺", tutoOk: "Got it 👍", tutoListo: "Done! 🚀", tutoSaltar: "Skip tutorial", tutoTuTurno: "tap what glows", tutoSiguiente: "skip step", consTitulo: "BREAKING NEWS", consEnVivo: "LIVE", consReal: "This happened in real life", consEntendido: "I get it 💔",
+tpContexto: "✂️ False context", tpImpostor: "🎭 Imposter content", tpFabricado: "🏗️ Fabricated content", tpManipulado: "🔧 Manipulated content", tpConexion: "⛓️ False connection", tpSatira: "😏 Satire or parody", tpEnganoso: "🌀 Misleading content", tpOdio: "🌠 Hate speech",
+contraDiscurso: "🕊️ Reply with counter-speech",
 porQueTipo: "Diagnosis: what type of problematic content is it?",
 satiraRep: "It is a declared PARODY account: satire does not violate guidelines. Share it critically 😉",
 radioT: "📸 DECEPTION X-RAY", radioTipo: "Type (First Draft)", radioTec: "Psychological technique", radioMotiv: "Who profits?", radioNota: "That is how they played you. Now you know it.",
@@ -352,8 +437,8 @@ const txtMsg = (m, L) => (m.clave ? T[L][m.clave] : m.texto[L]);
 const hash = (s, i) => { let h = i * 7 + 3; for (let c of s) h = (h * 31 + c.charCodeAt(0)) % 9973; return h; };
 const hora = (tick) => { const m = 37 + Math.floor(tick / 6); return (21 + Math.floor(m / 60)) % 24 + ":" + String(m % 60).padStart(2, "0"); };
 const nivelDe = (xp) => { let n = 1; RANGOS.forEach((r, i) => { if (xp >= r.xp) n = i + 1; }); return n; };
-const TIPOS = ["contexto", "impostor", "fabricado", "manipulado", "conexion", "satira", "enganoso"];
-const tipoLabel = (r, t) => ({ contexto: t.tpContexto, impostor: t.tpImpostor, fabricado: t.tpFabricado, manipulado: t.tpManipulado, conexion: t.tpConexion, satira: t.tpSatira, enganoso: t.tpEnganoso }[r]);
+const TIPOS = ["contexto", "impostor", "fabricado", "manipulado", "conexion", "satira", "enganoso", "odio"];
+const tipoLabel = (r, t) => ({ contexto: t.tpContexto, impostor: t.tpImpostor, fabricado: t.tpFabricado, manipulado: t.tpManipulado, conexion: t.tpConexion, satira: t.tpSatira, enganoso: t.tpEnganoso, odio: t.tpOdio }[r]);
 const motivLabel = (m, t) => ({ lucro: t.mvLucro, propaganda: t.mvProp, provocar: t.mvProvocar, pasion: t.mvPasion }[m]);
 const sharesDe = (c, g) => {
 const r = g.resueltos[c.id];
@@ -365,6 +450,23 @@ let s = 15 + Math.floor(Math.pow(dt, 1.35) * 1.6 * (1 + 0.12 * (g.familiaridad |
 if (r && r.primera === "compartido") s *= 2;
 return s;
 };
+const MEDIA = { audio: {}, video: {} };
+// Ej para después (solo pegar archivos en public/ y descomentar):
+// MEDIA.audio.betoIntro = "/UNESCO/audio/beto_intro.mp3";
+// MEDIA.video.deepfakeAlcalde = "/UNESCO/video/deepfake_alcalde.mp4";
+const TUTO = [
+{ id: "hola", target: null, audio: "betoIntro", txt: { es: "¡Qué bueno que llegas, primo! 🙌", en: "So glad you're here, cousin! 🙌" } },
+{ id: "familia", target: null, txt: { es: "La tía compartió algo FALSO en la familia.", en: "Auntie shared something FAKE in the family." } },
+{ id: "mision", target: null, txt: { es: "Tú vas a aprender a cacharlo. Te enseño 👇", en: "You'll learn to catch it. I'll show you 👇" } },
+{ id: "irInsta", target: "appInsta", txt: { es: "Abre Instagrama 📸 (el ícono de abajo)", en: "Open Instagrama 📸 (icon below)" } },
+{ id: "verPost", target: "post", txt: { es: "Mira ese post raro. Tócalo 👀", en: "See that weird post. Tap it 👀" } },
+{ id: "verAutor", target: "autor", txt: { es: "Primero: ¿QUIÉN lo publica? Toca el nombre.", en: "First: WHO posts it? Tap the name." } },
+{ id: "verImg", target: "imagen", txt: { es: "Ahora la foto. ¿De cuándo es? 🔎", en: "Now the photo. From when is it? 🔎" } },
+{ id: "abrirMenu", target: "menu", txt: { es: "Ya sabes que es falso. Abre el menú ⋯", en: "You know it's fake. Open the menu ⋯" } },
+{ id: "reportar", target: null, txt: { es: "Dale REPORTAR. ¡Túmbalo! 🚩", en: "Hit REPORT. Take it down! 🚩" } },
+{ id: "tipo", target: null, txt: { es: "¿Qué TIPO de engaño es? Elige 👉", en: "What TYPE of deception is it? Pick 👉" } },
+{ id: "cierre", target: null, txt: { es: "¡Eso! Ya sabes. Ahora van llegando solos 💪", en: "That's it! You got it. They'll keep coming 💪" } },
+];
 const estadoInicial = () => ({
 tick: 0, xp: 0, infodemia: 18, cred: 100, strikes: 0, limitado: 0,
 resueltos: {}, reportes: [],
@@ -381,6 +483,7 @@ cola: [
 { en: 9, canal: "dmBeto", m: { de: "beto", texto: { es: "El post de la tía está en el feed de Instagrama. Mi método: 1) toca su NOMBRE 👤 2) toca la IMAGEN 🔎 3) si dudas, reenvíamelo con ⋯ 📩 4) repórtalo con ⋯ y dime QUÉ TIPO de engaño es — el diagnóstico importa 🚩", en: "Auntie's post is on the Instagrama feed. My method: 1) tap their NAME 👤 2) tap the IMAGE 🔎 3) if in doubt, forward it via ⋯ 📩 4) report via ⋯ and tell me WHAT TYPE of deception it is — the diagnosis matters 🚩" }, propio: false } },
 ],
 familiaridad: 0, modoOscuro: false, koin: 0, misionIdx: 0, misionSel: {}, postsOscuros: [], traicion: false, finSeq: -1, ultimoRes: null,
+coach: [], _ck: [], tiposVistos: [], consVistas: [], afectados: {}, consecuencia: null, likes: [], contra: {}, apoyos: 0, misPosts: [], alertaIA: null, ultimaReaccion: null, respuestasLibres: 0,
 historias: HIST_AMB.slice(0, 2).map((h) => ({ ...h, tipo: "amb", vista: false, respondida: false, expiraEn: 999 })),
 histSpawn: 24,
 lecciones: [], reenviados: [],
@@ -403,7 +506,12 @@ return "pirrica";
 return "neutral";
 };
 export default function Verified() {
-const [lang, setLang] = useState("en");
+const lang = "en"; const setLang = () => {}; // idioma fijo (versión jurado)
+// ┌─ LLM EN VIVO (Fase 2) ─────────────────────────────────────────────┐
+// │ Para encender Gemini: (1) descomenta el import de activarLLM arriba, │
+// │ (2) pon tu PROXY_URL en agentes_online.js, (3) descomenta la línea:  │
+// useEffect(() => { activarLLM(); }, []);
+// └─────────────────────────────────────────────────────────────────────┘
 const [pantalla, setPantalla] = useState("lock");
 const [vistaInsta, setVistaInsta] = useState("feed");
 const [sheet, setSheet] = useState(null);
@@ -414,6 +522,9 @@ const [g, setG] = useState(estadoInicial);
 const [noLeidosW, setNoLeidosW] = useState(2);
 const [noLeidosDM, setNoLeidosDM] = useState(0);
 const [radio, setRadio] = useState(null);
+const [prevPant, setPrevPant] = useState("home");
+const [tutoPaso, setTutoPaso] = useState(0);
+const [tutoOn, setTutoOn] = useState(true);
 const [banners, setBanners] = useState([]);
 const [finalesVistos, setFinalesVistos] = useState([]);
 const t = T[lang];
@@ -421,6 +532,59 @@ const notificar = (titulo, texto) => {
 const id = Date.now() + Math.random();
 setBanners((b) => [...b.slice(-1), { id, titulo, texto }]);
 setTimeout(() => setBanners((b) => b.filter((x) => x.id !== id)), 4200);
+};
+const coachSay = (ng, de, txt, clave) => {
+if (clave) { if (ng._ck?.includes(clave)) return; ng._ck = [...(ng._ck || []), clave]; }
+ng.coach = [...ng.coach, { de, txt }];
+};
+const cerrarCoach = () => setG((s) => ({ ...s, coach: s.coach.slice(1) }));
+// --- FASE 3: motor de agentes cableado ---
+// Llama a pedirReaccion() (LLM si hay puente, si no banco offline etiquetado),
+// empuja el mensaje vivo del NPC a WhatsUp y aplica su "efecto" a la comunidad.
+const aplicarEfecto = (ng, npc, efecto) => {
+if (!npc || !ng.comunidad[npc]) return;
+if (efecto === "cae" || efecto === "panico") { if (ng.comunidad[npc] === "sano" || ng.comunidad[npc] === "dudoso") ng.comunidad = { ...ng.comunidad, [npc]: "caido" }; ng.infodemia = clamp(ng.infodemia + (efecto === "panico" ? 6 : 3), 0, 100); }
+else if (efecto === "duda") { if (ng.comunidad[npc] === "sano") ng.comunidad = { ...ng.comunidad, [npc]: "dudoso" }; }
+else if (efecto === "apoya" || efecto === "inmune") { if (ng.comunidad[npc] !== "caido") ng.comunidad = { ...ng.comunidad, [npc]: "inmune" }; }
+};
+const reaccionAgente = async (situacion, opts = {}) => {
+try {
+const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla: (opts.semilla || "") + situacion + Date.now(), textoUsuario: opts.textoUsuario, lang });
+if (!reaccion) return;
+setG((s) => {
+let ng = { ...s };
+// mensaje vivo del NPC al grupo de WhatsUp
+ng.chat = [...ng.chat, { de: reaccion.npc, texto: { es: reaccion.mensaje, en: reaccion.mensaje }, propio: false, t: ng.tick, ia: fuente === "llm" }];
+aplicarEfecto(ng, reaccion.npc, reaccion.efecto);
+// guardamos los metadatos (para Radiografía / diagnóstico futuros)
+ng.ultimaReaccion = { tipo: reaccion.tipo_firstdraft, motiv: reaccion.motivacion_8p, tec: reaccion.tecnica, mil: reaccion.mil, bando: reaccion.bando };
+if (alerta) ng.alertaIA = alerta; // se muestra como banner temático
+return ng;
+});
+setNoLeidosW((n) => n + 1);
+if (alerta) notificar("📡", alerta);
+} catch (e) { /* nunca romper el juego por una reacción */ }
+};
+// --- FASE 4: loop de texto libre → clasificación → feedback de Beto ---
+const responderLibre = async (texto) => {
+const txt = (texto || "").trim();
+if (!txt) return;
+// 1) el mensaje del usuario aparece en el chat
+setG((s) => ({ ...s, chat: [...s.chat, { de: "tu", texto: { es: txt, en: txt }, propio: true, t: s.tick }] }));
+// 2) clasificar (LLM si hay puente; si no, heurístico offline)
+const { categoria, fuente, alerta } = await clasificar(txt, {});
+const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
+// 3) feedback determinista de Beto + efecto en la comunidad (candado pedagógico)
+setG((s) => {
+let ng = { ...s };
+ng.coach = [...ng.coach, { de: "beto", txt: fb.txt }]; // Beto siempre enseña
+if (fb.ok === true) { const sanar = CIVILES.filter((k) => ng.comunidad[k] === "dudoso" || ng.comunidad[k] === "sano").slice(0, fb.efecto === "inmune" ? 2 : 1); for (const k of sanar) ng.comunidad = { ...ng.comunidad, [k]: "inmune" }; ganarXp(ng, categoria === "sandwich" ? 15 : 10); ng.infodemia = clamp(ng.infodemia - 4, 0, 100); if (fb.mil) aprenderLeccion(ng, fb.mil === 7 ? "etica" : fb.mil === 8 ? "empodera" : fb.mil === 9 ? "paz" : "acceso"); }
+else if (fb.ok === false) { ng.infodemia = clamp(ng.infodemia + (fb.efecto === "cae" ? 5 : 2), 0, 100); if (categoria === "repite_mito") ng.familiaridad = (ng.familiaridad || 0) + 2; }
+ng.respuestasLibres = (ng.respuestasLibres || 0) + 1;
+if (alerta) ng.alertaIA = alerta;
+return ng;
+});
+if (alerta) notificar("📡", alerta);
 };
 const encolar = (ng, canal, m, delay, noti) => { ng.cola = [...ng.cola, { en: delay, canal, m, noti }]; };
 const ganarXp = (ng, cant) => {
@@ -463,6 +627,7 @@ ng.strikes++;
 if (xpGanada) ganarXp(ng, xpGanada);
 aprenderLeccion(ng, caso.tacticaId);
 notificar("Instagrama", t.repProcedio);
+for (const tp of (caso.tipos || [])) { if (!ng.tiposVistos.includes(tp) && TIPO_EXPLICA[tp]) { ng.tiposVistos = [...ng.tiposVistos, tp]; coachSay(ng, "beto", TIPO_EXPLICA[tp], "tipo_" + tp); break; } }
 setRadio(caso.id);
 const duda = CIVILES.filter((k) => ng.comunidad[k] === "sano" && NPCS[k].credulidad > 0.6)[hash(caso.id, 5) % 4];
 if (duda) { ng.comunidad = { ...ng.comunidad, [duda]: "dudoso" }; encolar(ng, "whats", { de: duda, texto: { es: "Oye, ya la borraron pero… ¿y si sí era cierto? Algo han de estar ocultando 🤔", en: "They deleted it but… what if it WAS true? They must be hiding something 🤔" }, propio: false, preguntaId: "d_" + caso.id }, 9); }
@@ -506,7 +671,7 @@ eliminarPost(ng, caso, r.manada ? 30 : 25);
 } else {
 ng.resueltos = { ...ng.resueltos, [caso.id]: { ...prev, revision: false, rechazos: (prev.rechazos || 0) + 1 } };
 notificar("Instagrama", t.repRechazado);
-if ((prev.rechazos || 0) === 0) encolar(ng, "dmBeto", { de: "beto", texto: { es: "Rechazaron tu reporte de " + caso.img + "… la razón no era esa. Fíjate QUÉ está mal exactamente y reintenta con otra razón 💪", en: "They rejected your " + caso.img + " report… wrong reason. Look at WHAT exactly is wrong and try again 💪" }, propio: false }, 3);
+coachSay(ng, "beto", { es: "Ojo primo: rechazaron el reporte porque el TIPO no era ese. Abre la imagen 🔎, mira QUÉ está mal, y reintenta. Tú puedes 💪", en: "Heads up cousin: rejected because the TYPE was wrong. Open the image 🔎, see WHAT's wrong, and retry. You got this 💪" }, "rechazo1");
 }
 }
 if (ng.limitado > 0) ng.limitado--;
@@ -549,11 +714,19 @@ ng.crisis = { ...ng.crisis, quedan: ng.crisis.quedan - 1 };
 ng.infodemia = clamp(ng.infodemia + 0.12, 0, 100);
 if (ng.crisis.quedan <= 0) {
 const caso = CASOS.find((x) => x.id === ng.crisis.casoId);
+const cr = CRISIS[ng.crisis.casoId];
 const cand = CIVILES.filter((k) => ng.comunidad[k] === "sano");
 if (cand.length) { const npc = cand[hash(caso.id, 4) % cand.length]; ng.comunidad = { ...ng.comunidad, [npc]: "caido" }; encolar(ng, "whats", { de: npc, clave: "cayo", propio: false }, 3); }
 ng.infodemia = clamp(ng.infodemia + 12, 0, 100);
 ng.resueltos = { ...ng.resueltos, [caso.id]: { ...(ng.resueltos[caso.id] || { rechazos: 0 }), primera: ng.resueltos[caso.id]?.primera, correcto: ng.resueltos[caso.id]?.correcto, sharesFinal: sharesDe(caso, ng), eliminado: true } };
 ng.cred = clamp(ng.cred - 3, 0, 100);
+// ACTO 3 — consecuencia real: titular devastador + NPC afectado
+if (cr?.cons) {
+ng.consecuencia = { titular: cr.cons.titular, real: cr.cons.real };
+ng.afectados = { ...ng.afectados, [cr.cons.afecta]: ng.crisis.casoId };
+ng.noticiasExtra = [{ texto: cr.cons.titular, t: ng.tick, grave: true }, ...ng.noticiasExtra];
+coachSay(ng, "beto", { es: "No lo detuvimos a tiempo, primo… y mira las consecuencias. Esto pasa DE VERDAD. Por eso importa. 💔", en: "We didn't stop it in time, cousin… look at the consequences. This happens FOR REAL. That's why it matters. 💔" }, "cons_" + ng.crisis.casoId);
+}
 ng.crisis = null; setProto(false);
 notificar("💔", t.protoFallo);
 }
@@ -614,6 +787,17 @@ const reportarCaso = (casoId, razon, manada) => {
 setG((s) => {
 const caso = CASOS.find((c) => c.id === casoId);
 let ng = { ...s };
+if (razon === "__contra__") { // contra-discurso: desescala sin insultar
+const nuevoC = !ng.resueltos[casoId]?.primera;
+primeraDecision(ng, caso, "reportado");
+eliminarPost(ng, caso, 35);
+aprenderLeccion(ng, "odio");
+ng.infodemia = clamp(ng.infodemia - 6, 0, 100);
+if (nuevoC && ng.proximoEn === 0 && ng.colaIdx < CASOS.length) ng.proximoEn = 4;
+coachSay(ng, "beto", { es: "🕊️ Eso es contra-discurso, primo: bajaste el tono sin rebajarte. Reportar calla la cuenta; responder bien cambia a quien LEE. Las dos cosas suman.", en: "🕊️ That's counter-speech, cousin: you lowered the tone without stooping. Reporting mutes the account; a good reply changes the READERS. Both count." }, "contra1");
+setSheet(null);
+return ng;
+}
 const nuevo = !ng.resueltos[casoId]?.primera;
 primeraDecision(ng, caso, "reportado");
 ng.resueltos = { ...ng.resueltos, [casoId]: { ...(ng.resueltos[casoId] || { rechazos: 0 }), primera: ng.resueltos[casoId]?.primera || "reportado", correcto: ng.resueltos[casoId]?.correcto ?? caso.fake, revision: true } };
@@ -625,18 +809,77 @@ return ng;
 });
 setSheet(null);
 };
-const confiarCaso = (casoId) => {
+const darLike = (casoId) => {
 setG((s) => {
 const caso = CASOS.find((c) => c.id === casoId);
 let ng = { ...s };
+const yaLike = ng.likes.includes(casoId);
+ng.likes = yaLike ? ng.likes.filter((x) => x !== casoId) : [...ng.likes, casoId];
+if (yaLike) return ng; // quitar like no penaliza ni enseña
 const nuevo = !ng.resueltos[casoId]?.primera;
-primeraDecision(ng, caso, "confiado");
-ng.resueltos = { ...ng.resueltos, [casoId]: { ...(ng.resueltos[casoId] || { rechazos: 0 }), primera: ng.resueltos[casoId]?.primera || "confiado", correcto: ng.resueltos[casoId]?.correcto ?? !caso.fake, confiado: true } };
-if (!caso.fake) ganarXp(ng, 10);
-if (nuevo && ng.proximoEn === 0 && ng.colaIdx < CASOS.length) ng.proximoEn = 4;
+if (!caso.fake) { // dar like a algo legítimo/ético = apoyar el buen contenido (Misión 8)
+if (nuevo) { primeraDecision(ng, caso, "confiado"); ng.resueltos = { ...ng.resueltos, [casoId]: { ...(ng.resueltos[casoId] || { rechazos: 0 }), primera: "confiado", correcto: true } }; ganarXp(ng, 8); ng.infodemia = clamp(ng.infodemia - 2, 0, 100); if (NPCS[caso.autorId]?.rol === "oficial" || caso.accesoCaso) aprenderLeccion(ng, "acceso"); if (nuevo && ng.proximoEn === 0 && ng.colaIdx < CASOS.length) ng.proximoEn = 4; }
+} else { // like a un fake = amplificarlo sin querer
+ng.infodemia = clamp(ng.infodemia + 3, 0, 100);
+coachSay(ng, "beto", { es: "Cuidado primo 👀 le diste ❤️ a algo sin verificar — eso lo empuja MÁS en el feed. El corazón también amplifica. Verifica antes de reaccionar.", en: "Careful cousin 👀 you ❤️'d something unverified — that pushes it MORE in the feed. The heart amplifies too. Verify before you react." }, "likefake");
+}
+return ng;
+});
+};
+const armarTexto = (seq, caso, lang) => seq.map((id) => {
+const b = BLOQUES.find((x) => x.id === id);
+let f = b.frag[lang];
+if (b.usaVerdad && caso.imagenRes?.txt) f += " " + caso.imagenRes.txt[lang];
+return f;
+}).join(" ");
+const explicarContra = (res, lang) => {
+const L = { es: {}, en: {} };
+const partes = [];
+const p = (es, en) => partes.push(lang === "es" ? es : en);
+if (res.sandwich) p("🥪 ¡Sándwich de la verdad perfecto! Empezaste con el hecho, explicaste la trampa y cerraste reforzando la verdad. Justo como el manual del desmentido. La comunidad confía.", "🥪 Perfect truth sandwich! You opened with the fact, explained the trick, and closed reinforcing the truth. Exactly like the debunking handbook. The community trusts it.");
+else {
+if (res.notas.find((n) => n.k === "gritaMito")) p("🔁 Repetiste el mito EN GRANDE — eso lo vuelve más familiar, y lo familiar se siente verdadero (ilusión de verdad). Contraproducente.", "🔁 You repeated the myth IN CAPS — that makes it more familiar, and the familiar feels true (illusory truth). It backfires.");
+if (res.notas.find((n) => n.k === "burla")) p("😡 Te burlaste de quien lo creyó: eso lo pone a la defensiva y se aferra MÁS al error (efecto tiro por la culata).", "😡 You mocked whoever believed it: that makes them defensive and cling HARDER to the error (backfire effect).");
+if (res.notas.find((n) => n.k === "noEmpiezaHecho")) p("Recuerda: empieza SIEMPRE con el hecho, no con el mito. Lo primero que se lee es lo que se queda.", "Remember: ALWAYS start with the fact, not the myth. What's read first is what sticks.");
+if (res.tier === "buena") p("✅ Buena corrección: sólida y con fuente. Para que sea perfecta, ciérrala reforzando el hecho.", "✅ Good correction: solid and sourced. To make it perfect, close by reinforcing the fact.");
+}
+return { es: partes.join(" "), en: partes.join(" ") };
+};
+const contraPublicar = (casoId, seq) => {
+setG((s) => {
+const caso = CASOS.find((c) => c.id === casoId);
+let ng = { ...s };
+if (!seq?.length || ng.contra[casoId]) return ng;
+const res = puntuarContra(seq);
+const efectiva = res.tier === "excelente" || res.tier === "buena";
+ng.contra = { ...ng.contra, [casoId]: efectiva ? "bien" : "mal" };
+ng.misPosts = [...ng.misPosts, { casoId, tier: res.tier, efectiva, t: ng.tick, texto: { es: armarTexto(seq, caso, "es"), en: armarTexto(seq, caso, "en") } }];
+const why = explicarContra(res, "es"); const whyEn = explicarContra(res, "en");
+if (efectiva) {
+ganarXp(ng, res.tier === "excelente" ? 30 : 18);
+ng.infodemia = clamp(ng.infodemia - (res.tier === "excelente" ? 12 : 7), 0, 100);
+aprenderLeccion(ng, "etica"); // Misión 7
+const nApoyo = res.tier === "excelente" ? 3 : 2;
+const apoyo = CIVILES.filter((k) => ng.comunidad[k] === "sano" || ng.comunidad[k] === "dudoso").slice(0, nApoyo);
+for (const k of apoyo) ng.comunidad = { ...ng.comunidad, [k]: "inmune" };
+ng.apoyos = (ng.apoyos || 0) + 1;
+if (ng.apoyos >= 2) aprenderLeccion(ng, "empodera"); // Misión 8
+encolar(ng, "whats", { de: apoyo[0] || "raul", texto: { es: "¡Vi tu corrección y la compartí! Por fin algo bien explicado 🙌", en: "Saw your correction and shared it! Finally something well explained 🙌" }, propio: false }, 4, "WhatsUp");
+coachSay(ng, "beto", { es: why.es, en: whyEn.es }, "contra_ok_" + casoId);
+notificar("✨", t.contraOk);
+} else {
+ng.infodemia = clamp(ng.infodemia + (res.tier === "contra" ? 8 : 2), 0, 100);
+if (res.notas.find((n) => n.k === "gritaMito")) ng.familiaridad = (ng.familiaridad || 0) + 2;
+coachSay(ng, "beto", { es: why.es || "Le faltó estructura. Empieza con el hecho, explica la trampa y cierra con la verdad.", en: whyEn.es || "It lacked structure. Start with the fact, explain the trick, close with the truth." }, "contra_mal_" + casoId);
+notificar("⚠️", t.contraMal);
+}
 return ng;
 });
 setSheet(null);
+// FASE 3: los NPCs reaccionan EN VIVO a tu corrección
+const buena = puntuarContra(seq).tier;
+const efectiva = buena === "excelente" || buena === "buena";
+reaccionAgente(efectiva ? "user_corrige_bien" : "user_corrige_mal", { semilla: casoId });
 };
 const compartirCaso = (casoId) => {
 setG((s) => {
@@ -648,14 +891,18 @@ ng.resueltos = { ...ng.resueltos, [casoId]: { ...(ng.resueltos[casoId] || { rech
 if (nuevo && ng.proximoEn === 0 && ng.colaIdx < CASOS.length) ng.proximoEn = 4;
 if (caso.fake) {
 ng.infodemia = clamp(ng.infodemia + 15, 0, 100);
+coachSay(ng, "beto", { es: "¡Nooo primo, la COMPARTISTE! 😱 Así se riega esto. Mira lo que pasó en la familia… y cómo sube el caos. Aprende a cacharlas ANTES de reenviar.", en: "Noo cousin, you SHARED it! 😱 That's how this spreads. Look what happened in the family… and how the chaos rises. Learn to catch them BEFORE forwarding." }, "sharefake");
 if (ng.comunidad.carmen !== "caido") { ng.comunidad = { ...ng.comunidad, carmen: "caido" }; encolar(ng, "whats", { de: "carmen", clave: "cayo", propio: false }, 4, "WhatsUp"); }
 encolar(ng, "whats", { de: "mama", clave: "preguntaShare", propio: false, preguntaId: "qs_" + casoId, share: true }, 7, "WhatsUp · " + NPCS.mama.nombre[lang]);
 notificar("💔", t.caidaShare);
 dispararCrisis(ng, casoId);
-} else { ganarXp(ng, 12); ng.infodemia = clamp(ng.infodemia - 3, 0, 100); }
+} else { ganarXp(ng, 12); ng.infodemia = clamp(ng.infodemia - 3, 0, 100); if (caso.accesoCaso) { aprenderLeccion(ng, "empodera"); ng.infodemia = clamp(ng.infodemia - 5, 0, 100); const sanar = CIVILES.filter((k) => ng.comunidad[k] === "dudoso" || ng.comunidad[k] === "sano").slice(0, 2); for (const k of sanar) ng.comunidad = { ...ng.comunidad, [k]: "inmune" }; coachSay(ng, "beto", { es: "¡Eso, primo! Empujaste lo verdadero. Acabas de inmunizar a varios de la banda. Eso es empoderar: no solo defender, construir. 🌌", en: "Yes, cousin! You pushed the truth. You just immunized several of the crew. That's empowerment: not just defending, building. 🌌" }, "empodera1"); } }
 return ng;
 });
 setSheet(null);
+// FASE 3: al compartir un fake, la familia reacciona en vivo
+const cf = CASOS.find((c) => c.id === casoId);
+if (cf?.fake) reaccionAgente("user_comparte_fake", { semilla: casoId });
 };
 const reenviarBeto = (casoId) => {
 setG((s) => {
@@ -664,6 +911,7 @@ const caso = CASOS.find((c) => c.id === casoId);
 let ng = { ...s, reenviados: [...s.reenviados, casoId] };
 ng.dmBeto = [...ng.dmBeto, { de: "tu", texto: { es: "📎 [reenviaste la publicación de @" + NPCS[caso.autorId].handle + " " + caso.img + "] — ¿tú qué ves?", en: "📎 [you forwarded @" + NPCS[caso.autorId].handle + "'s post " + caso.img + "] — what do you see?" }, propio: true, t: s.tick }];
 encolar(ng, "dmBeto", { de: "beto", texto: caso.betoTip, propio: false }, 4);
+aprenderLeccion(ng, "etica");
 return ng;
 });
 setSheet(null);
@@ -700,6 +948,8 @@ ganarXp(ng, 10); ng.infodemia = clamp(ng.infodemia - (q.share ? 5 : 7), 0, 100);
 ng.chat = [...ng.chat, { de: "tu", clave: q.share ? "corregiste" : "explicaste", propio: true, t: ng.tick }];
 encolar(ng, "whats", { de: q.quien, clave: "alivio", propio: false }, 3);
 if (ng.comunidad[q.quien] && ng.comunidad[q.quien] !== "caido") ng.comunidad = { ...ng.comunidad, [q.quien]: "inmune" };
+const inmunes = Object.values(ng.comunidad).filter((e) => e === "inmune").length;
+if (inmunes >= 3) aprenderLeccion(ng, "paz");
 } else {
 ng.infodemia = clamp(ng.infodemia + 7, 0, 100);
 if (ng.comunidad[q.quien] === "sano") { ng.comunidad = { ...ng.comunidad, [q.quien]: "caido" }; encolar(ng, "whats", { de: q.quien, clave: "cayo", propio: false }, 3); }
@@ -729,6 +979,7 @@ ng.dmArq = [...ng.dmArq, { de: "tu", clave: "aceptaste", propio: true, t: ng.tic
 encolar(ng, "dmArq", { de: "arq", texto: { es: "Bienvenido al otro lado. Te instalé una herramienta: SPECTRA 🕸️. Ábrela. Ahí te llegan los encargos… y los pagos.", en: "Welcome to the other side. I installed a tool for you: SPECTRA 🕸️. Open it. That is where the jobs arrive… and the payments." }, propio: false }, 2, "🕸️ SPECTRA");
 encolar(ng, "dmBeto", { de: "beto", texto: { es: "Primo… ¿por qué ya no aparece la bitácora en tu teléfono? Dime que no es lo que estoy pensando.", en: "Cousin… why is the notebook gone from your phone? Tell me it is not what I am thinking." }, propio: false }, 8);
 notificar("🕸️", t.spInstalada); notificar("📓", t.spBitaFuera);
+coachSay(ng, "arq", { es: "Bienvenido, aprendiz. Aquí NO improvisamos: cada campaña embona 4 piezas — audiencia + tipo de engaño + técnica emocional + amplificación. Te enseñaré a manipular… y verás lo que provoca. 🎭", en: "Welcome, apprentice. Here we do NOT improvise: every campaign fits 4 pieces — audience + deception type + emotional technique + amplification. I'll teach you to manipulate… and you'll see what it causes. 🎭" }, "arq_intro");
 } else {
 ng.ofertas = { ...ng.ofertas, [oid]: "rechazada" }; ganarXp(ng, 20); ng.cred = clamp(ng.cred - 5, 0, 100);
 ng.dmArq = [...ng.dmArq, { de: "tu", clave: "rechazaste", propio: true, t: ng.tick }];
@@ -756,7 +1007,8 @@ ng.infodemia = clamp(ng.infodemia + (tier === "exito" ? 12 : 6), 0, 100);
 ng.postsOscuros = [...ng.postsOscuros, { id: m.id, titular: m.titular, t: ng.tick }];
 if (m.cae && ng.comunidad[m.cae] !== "caido") { ng.comunidad = { ...ng.comunidad, [m.cae]: "caido" }; }
 encolar(ng, "whats", { de: m.cons.npc, texto: m.cons.texto, propio: false }, 6, "WhatsUp");
-encolar(ng, "dmArq", { de: "arq", texto: tier === "exito" ? { es: "Impecable. El cliente está feliz. ⧫" + m.pago + " depositados. 🎭", en: "Flawless. The client is happy. ⧫" + m.pago + " deposited. 🎭" } : { es: "Mediocre. Medio pago. La próxima elige mejor tus armas.", en: "Mediocre. Half pay. Choose your weapons better next time." }, propio: false }, 3);
+if (tier === "exito" && m.dano) { ng.consecuencia = { titular: m.dano.titular, real: m.dano.real }; ng.afectados = { ...ng.afectados, [m.cons.npc]: m.id }; }
+encolar(ng, "dmArq", { de: "arq", texto: tier === "exito" ? { es: "Impecable. El cliente está feliz. ⧫" + m.pago + " depositados. ¿Ves el daño? A nosotros nos paga. 🎭", en: "Flawless. The client is happy. ⧫" + m.pago + " deposited. See the damage? It pays US. 🎭" } : { es: "Mediocre. Medio pago. La próxima elige mejor tus armas.", en: "Mediocre. Half pay. Choose your weapons better next time." }, propio: false }, 3);
 } else {
 ng.infodemia = clamp(ng.infodemia + 2, 0, 100);
 encolar(ng, "dmArq", { de: "arq", texto: { es: "REPORTADA en horas. Demasiado obvio: audiencia, tipo y técnica deben EMBONAR. No me hagas perder dinero. 🎭", en: "REPORTED within hours. Too obvious: audience, type and technique must FIT. Do not make me lose money. 🎭" }, propio: false }, 3, "🕸️ SPECTRA");
@@ -776,9 +1028,28 @@ return ng;
 });
 };
 const reiniciar = () => {
-setG(estadoInicial()); setPantalla("home"); setVistaInsta("feed");
+setG(estadoInicial()); setPantalla("home"); setVistaInsta("feed"); setTutoPaso(0); setTutoOn(true);
 setSheet(null); setPerfil(null); setHistoria(null); setProto(false); setNoLeidosW(0); setNoLeidosDM(1);
 };
+// avanzar tutorial según acciones reales del jugador (tolerante al orden)
+const pasoT = TUTO[tutoPaso];
+const idxDe = (id) => TUTO.findIndex((p) => p.id === id);
+const saltarA = (id) => setTutoPaso((p) => Math.max(p, idxDe(id) + 1)); // nunca retrocede
+useEffect(() => { // abrir Instagrama satisface irInsta (y todo lo previo)
+if (tutoOn && pantalla === "insta" && idxDe("irInsta") >= tutoPaso) saltarA("irInsta");
+}, [pantalla]);
+useEffect(() => { // abrir cualquier hoja avanza al paso correspondiente, saltando intermedios
+if (!tutoOn || !sheet) return;
+if (sheet.tipo === "imagen") saltarA("verImg");
+if (sheet.tipo === "menu") saltarA("abrirMenu");
+if (sheet.tipo === "razones") saltarA("reportar");
+}, [sheet]);
+useEffect(() => { if (tutoOn && perfil) saltarA("verAutor"); }, [perfil]);
+useEffect(() => { // resolver el primer caso cierra el tutorial de inmediato
+if (tutoOn && g.resueltos.c1?.primera && !g.modoOscuro) setTutoOn(false);
+}, [g.resueltos]);
+const avanzarTuto = () => setTutoPaso((p) => p + 1);
+const saltarTuto = () => { setTutoOn(false); setTutoPaso(TUTO.length); };
 useEffect(() => {
 const num = Object.values(g.resueltos).filter((r) => r.primera).length;
 setG((s) => {
@@ -798,11 +1069,13 @@ const escribiendoEn = (canal) => { const e = g.cola.find((x) => x.canal === cana
 const bateria = Math.max(12, 100 - Math.floor(g.tick / 9));
 return (
 <div className="w-full min-h-screen flex items-center justify-center" style={{ background: "#0b0d12", fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif" }}>
+<style>{`@keyframes haloP { 0%,100% { box-shadow: 0 0 0 4px #059669, 0 0 22px 6px rgba(5,150,105,.85); } 50% { box-shadow: 0 0 0 6px #10b981, 0 0 34px 12px rgba(16,185,129,.55); } } @keyframes pulso { 0%,100% { opacity: 1; } 50% { opacity: .3; } } @keyframes subeB { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
 <div className="relative overflow-hidden flex flex-col" style={{ width: "min(392px, 100vw)", height: "min(100dvh, 852px)", background: "#000", borderRadius: 36, boxShadow: g.crisis ? "0 0 0 10px #450a0a, 0 0 40px rgba(220,38,38,.55), 0 30px 80px rgba(0,0,0,.8)" : "0 0 0 10px #17181c, 0 30px 80px rgba(0,0,0,.8)", transition: "box-shadow 1s" }}>
 <div className="flex justify-between items-center px-6 pt-2 pb-1 text-xs font-semibold" style={{ color: pantalla === "insta" ? "#111" : "#fff", background: fondoBarra(pantalla), zIndex: 20 }}>
 <span>{hora(g.tick)}</span>
 <span className="flex items-center gap-1.5">
-<span className="tracking-widest">▂▄▆ 5G</span>
+<span className="tracking-widest">{puente.online ? "▂▄▆ 5G" : "▂▁▁ ✕"}</span>
+<span title={puente.online ? "IA en vivo" : "modo offline"} style={{ fontSize: 10 }}>{puente.online ? "🟢" : "📴"}</span>
 {g.modoOscuro && <span style={{ color: "#fbbf24", fontWeight: 800 }}>⧫{g.koin}</span>}
 <span style={{ color: bateria < 25 ? "#f87171" : "inherit" }}>🔋{bateria}%</span>
 </span>
@@ -817,29 +1090,42 @@ return (
 </div>
 <div className="flex-1 overflow-hidden relative">
 {pantalla === "lock" && <Lock t={t} lang={lang} setLang={setLang} onStart={() => { setPantalla("whats"); setNoLeidosW(0); }} />}
-{pantalla === "home" && <Home t={t} lang={lang} setLang={setLang} g={g} nivel={nivel} noLeidosW={noLeidosW} noLeidosDM={noLeidosDM} abrir={(app) => {
+{pantalla === "home" && <Home t={t} lang={lang} setLang={setLang} g={g} nivel={nivel} noLeidosW={noLeidosW} noLeidosDM={noLeidosDM} tutoTarget={tutoOn ? pasoT?.target : null} abrir={(app) => {
 if (app === "whats") { if (!g.desbloqueado.whats) return notificar("🔒", t.bloqueada); setPantalla("whats"); setNoLeidosW(0); }
 else if (app === "spectra") setPantalla("spectra");
 else if (app === "bitacora" || app === "news") { if (!g.desbloqueado[app === "bitacora" ? "bitacora" : "news"]) return notificar("🔒", t.bloqueada); setPantalla(app); }
 else setPantalla(app);
 }} />}
-{pantalla === "insta" && <Instagrama t={t} lang={lang} g={g} nivel={nivel} vista={vistaInsta} setVista={setVistaInsta} noLeidosDM={noLeidosDM} setNoLeidosDM={setNoLeidosDM} setSheet={setSheet} verPerfil={setPerfil} verHistoria={(hid) => { setHistoria(hid); setG((s) => ({ ...s, historias: s.historias.map((h) => (h.id === hid ? { ...h, vista: true } : h)) })); }} escribiendo={escribiendoEn} responderOferta={responderOferta} abrirProto={() => setProto(true)} />}
-{pantalla === "whats" && <WhatsUp t={t} lang={lang} g={g} responder={responderPregunta} verPerfil={setPerfil} escribiendo={escribiendoEn("whats")} />}
+{pantalla === "insta" && <Instagrama t={t} lang={lang} g={g} nivel={nivel} vista={vistaInsta} setVista={setVistaInsta} noLeidosDM={noLeidosDM} setNoLeidosDM={setNoLeidosDM} setSheet={setSheet} verPerfil={setPerfil} verHistoria={(hid) => { setHistoria(hid); setG((s) => ({ ...s, historias: s.historias.map((h) => (h.id === hid ? { ...h, vista: true } : h)) })); }} escribiendo={escribiendoEn} responderOferta={responderOferta} abrirProto={() => setProto(true)} tutoTarget={tutoOn ? pasoT?.target : null} darLike={darLike} contraPublicar={contraPublicar} />}
+{pantalla === "whats" && <WhatsUp t={t} lang={lang} g={g} responder={responderPregunta} verPerfil={setPerfil} escribiendo={escribiendoEn("whats")} responderLibre={responderLibre} />}
 {pantalla === "bitacora" && !g.modoOscuro && <Bitacora t={t} lang={lang} g={g} nivel={nivel} />}
 {pantalla === "spectra" && g.modoOscuro && <Spectra t={t} lang={lang} g={g} elegir={selMision} publicar={publicarMision} traicionar={traicionar} />}
 {pantalla === "news" && <Noticias t={t} lang={lang} g={g} />}
-{sheet && <Sheets t={t} lang={lang} g={g} nivel={nivel} sheet={sheet} setSheet={setSheet} reportar={reportarCaso} confiar={confiarCaso} compartir={compartirCaso} reenviar={reenviarBeto} />}
+{sheet && <Sheets t={t} lang={lang} g={g} nivel={nivel} sheet={sheet} setSheet={setSheet} reportar={reportarCaso} compartir={compartirCaso} reenviar={reenviarBeto} contraPublicar={contraPublicar} />}
 {histActual && <VisorHistoria t={t} lang={lang} h={histActual} cerrar={() => setHistoria(null)} responder={responderHistoria} />}
 {perfil && <PerfilMini t={t} lang={lang} npcId={perfil} g={g} cerrar={() => setPerfil(null)} />}
 {radio && <Radiografia t={t} lang={lang} casoId={radio} cerrar={() => setRadio(null)} />}
 {proto && g.crisis && <Protocolo t={t} lang={lang} g={g} paso={pasoProtocolo} cerrar={() => setProto(false)} />}
 {g.fin && g.final && <Final t={t} lang={lang} g={g} finalesVistos={finalesVistos} reiniciar={reiniciar} />}
+{tutoOn && pasoT && pantalla !== "lock" && !g.fin && <TutoBurbuja t={t} lang={lang} paso={pasoT} avanzar={avanzarTuto} saltar={saltarTuto} idx={tutoPaso} total={TUTO.length} />}
+{(!tutoOn || !pasoT) && g.coach.length > 0 && pantalla !== "lock" && !g.fin && <CoachBurbuja t={t} lang={lang} msg={g.coach[0]} cerrar={cerrarCoach} />}
+{g.consecuencia && <Consecuencia t={t} lang={lang} cons={g.consecuencia} cerrar={() => setG((s) => ({ ...s, consecuencia: null }))} />}
 </div>
-{pantalla !== "lock" && (
-<button onClick={() => setPantalla("home")} className="flex justify-center items-center py-2" style={{ background: fondoBarra(pantalla) }} aria-label="Home">
-<div style={{ width: 120, height: 5, borderRadius: 3, background: pantalla === "insta" ? "#111" : "#fff", opacity: 0.85 }} />
-</button>
-)}
+{pantalla !== "lock" && (() => {
+// ¿la acción crítica está en OTRA app? (crisis activa en Instagrama, o caso sin resolver)
+const accionEnInsta = (g.crisis || g.liberados.some((id) => { const c = CASOS.find((x) => x.id === id); return c && c.fake && !g.resueltos[id]?.eliminado && !g.resueltos[id]?.primera; })) && pantalla !== "insta";
+const oscuro = ["insta", "news", "whats"].includes(pantalla) === false;
+const claro = pantalla === "insta" || pantalla === "bitacora";
+const col = claro ? "#111" : "#fff";
+const glow = { boxShadow: "0 0 0 2px #059669, 0 0 16px 4px rgba(5,150,105,.9)", animation: "haloP 1s infinite" };
+return (
+<div className="flex justify-around items-center py-2.5" style={{ background: fondoBarra(pantalla), borderTop: "1px solid rgba(128,128,128,.15)" }}>
+<button onClick={() => setPantalla("home")} aria-label="Back" className="px-6 py-1 rounded-lg" style={{ color: col, fontSize: 18, opacity: pantalla === "home" ? .35 : 1 }}>◁</button>
+<button onClick={() => setPantalla("home")} aria-label="Home" className="px-6 py-1 rounded-full" style={{ color: col, fontSize: 20, ...(accionEnInsta ? glow : {}) }}>○</button>
+<button aria-label="Recent" className="px-6 py-1" style={{ color: col, fontSize: 16, opacity: .6 }}>▢</button>
+</div>
+);
+})()}
 </div>
 </div>
 );
@@ -880,13 +1166,7 @@ return onClick
 function Lock({ t, lang, setLang, onStart }) {
 return (
 <div className="h-full flex flex-col items-center justify-between py-8 px-6" style={{ background: "linear-gradient(180deg,#12172b 0%,#1d1440 55%,#0f2e22 100%)" }}>
-<div className="w-full flex justify-end">
-<div className="flex rounded-full overflow-hidden" style={{ border: "1px solid rgba(255,255,255,.3)" }}>
-{["en", "es"].map((l) => (
-<button key={l} onClick={() => setLang(l)} className="px-3 py-1 text-xs font-bold uppercase" style={{ background: lang === l ? "#fff" : "transparent", color: lang === l ? "#111" : "#fff" }}>{l}</button>
-))}
-</div>
-</div>
+
 <div className="text-center">
 <div className="text-6xl font-thin text-white">21:37</div>
 <div className="text-sm text-gray-300 mt-1">{t.fecha}</div>
@@ -906,7 +1186,7 @@ return (
 </div>
 );
 }
-function Home({ t, lang, setLang, g, nivel, abrir, noLeidosW, noLeidosDM }) {
+function Home({ t, lang, setLang, g, nivel, abrir, noLeidosW, noLeidosDM, tutoTarget }) {
 const fondo = g.infodemia < 35 ? "linear-gradient(180deg,#12172b,#1d1440 60%,#0f2e22)" : g.infodemia < 65 ? "linear-gradient(180deg,#1d1a2b,#3b2a14 60%,#3b0f2e)" : "linear-gradient(180deg,#2b1212,#440f0f 60%,#3b0f2e)";
 const estado = g.infodemia < 35 ? t.estado0 : g.infodemia < 65 ? t.estado1 : t.estado2;
 const r = RANGOS[nivel - 1];
@@ -924,16 +1204,12 @@ return (
 <div className="text-xs text-gray-300 mt-1">{estado}</div>
 <div className="text-xs font-bold mt-1" style={{ color: "#fbbf24" }}>{r.emoji} {r.n[lang]} · {Math.floor(g.xp)} XP</div>
 </div>
-<div className="flex rounded-full overflow-hidden" style={{ border: "1px solid rgba(255,255,255,.3)" }}>
-{["en", "es"].map((l) => (
-<button key={l} onClick={() => setLang(l)} className="px-3 py-1 text-xs font-bold uppercase" style={{ background: lang === l ? "#fff" : "transparent", color: lang === l ? "#111" : "#fff" }}>{l}</button>
-))}
-</div>
+
 </div>
 <div className="grid grid-cols-4 gap-5">
 {apps.map((a) => (
 <button key={a.id} onClick={() => abrir(a.id)} className="flex flex-col items-center gap-1.5">
-<div className="relative w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-lg" style={{ background: a.bg, filter: a.lock ? "grayscale(.9) brightness(.6)" : "none" }}>
+<div className="relative w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shadow-lg" style={{ background: a.bg, filter: a.lock ? "grayscale(.9) brightness(.6)" : "none", ...(tutoTarget === "appInsta" && a.id === "insta" ? { boxShadow: "0 0 0 4px #059669, 0 0 24px 8px rgba(5,150,105,.9)", animation: "haloP 1s infinite" } : {}) }}>
 {a.icono}
 {a.lock && <span className="absolute -bottom-1 -right-1 text-sm">🔒</span>}
 {!a.lock && a.badge > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full text-xs font-bold text-white flex items-center justify-center" style={{ background: "#ef4444" }}>{a.badge}</span>}
@@ -965,7 +1241,7 @@ out.push({ npc, texto: COMS.gratitud[lang][hash(caso.id, 9) % COMS.gratitud[lang
 }
 return out;
 }
-function Instagrama({ t, lang, g, nivel, vista, setVista, noLeidosDM, setNoLeidosDM, setSheet, verPerfil, verHistoria, escribiendo, responderOferta, abrirProto }) {
+function Instagrama({ t, lang, g, nivel, vista, setVista, noLeidosDM, setNoLeidosDM, setSheet, verPerfil, verHistoria, escribiendo, responderOferta, abrirProto, tutoTarget, darLike, contraPublicar }) {
 return (
 <div className="h-full flex flex-col bg-white">
 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200">
@@ -978,14 +1254,15 @@ return (
 </button>
 </div>
 </div>
-{vista === "feed" && <Feed t={t} lang={lang} g={g} setSheet={setSheet} verPerfil={verPerfil} verHistoria={verHistoria} />}
+{vista === "feed" && <Feed t={t} lang={lang} g={g} setSheet={setSheet} verPerfil={verPerfil} verHistoria={verHistoria} tutoTarget={tutoTarget} darLike={darLike} />}
 {vista === "dms" && <ListaDM t={t} lang={lang} g={g} setVista={setVista} escribiendo={escribiendo} />}
 {vista === "dmBeto" && <HiloDM t={t} lang={lang} g={g} msgs={g.dmBeto} quien="beto" volver={() => setVista("dms")} verPerfil={verPerfil} escribiendo={escribiendo("dmBeto")} abrirProto={abrirProto} />}
 {vista === "dmArq" && <HiloDM t={t} lang={lang} g={g} msgs={g.dmArq} quien="arq" volver={() => setVista("dms")} verPerfil={verPerfil} escribiendo={escribiendo("dmArq")} ofertas={g.ofertas} responderOferta={responderOferta} />}
 </div>
 );
 }
-function Feed({ t, lang, g, setSheet, verPerfil, verHistoria }) {
+function Feed({ t, lang, g, setSheet, verPerfil, verHistoria, tutoTarget, darLike }) {
+const halo = (on) => on ? { boxShadow: "0 0 0 4px #059669, 0 0 22px 6px rgba(5,150,105,.85)", borderRadius: 10, animation: "haloP 1s infinite" } : {};
 const historias = g.modoOscuro ? [] : g.historias.filter((h) => h.expiraEn > 0 || h.tipo === "amb").slice(-6);
 const visibles = [...g.liberados].reverse();
 return (
@@ -1003,6 +1280,33 @@ return (
 );
 })}
 </div>
+{g.misPosts.slice().reverse().map((p, pi) => {
+const fake = CASOS.find((c) => c.id === p.casoId);
+const dt = Math.max(1, g.tick - p.t);
+const mult = p.tier === "excelente" ? 5 : p.tier === "buena" ? 3 : 1;
+const likes = p.efectiva ? 10 + Math.floor(Math.pow(dt, 1.3) * mult) : 2 + Math.floor(dt * 0.4);
+const badge = p.tier === "excelente" ? "🥪" : p.tier === "buena" ? "✅" : p.tier === "contra" ? "🔁" : "😕";
+return (
+<div key={"mp" + pi} className="border-b pb-2" style={{ borderColor: p.efectiva ? "#bbf7d0" : "#fecaca", background: p.efectiva ? "#f0fdf4" : "#fef2f2" }}>
+<div className="flex items-center gap-2 px-4 py-2">
+<div className="w-8 h-8 rounded-full flex items-center justify-center text-lg" style={{ background: p.efectiva ? "#dcfce7" : "#fee2e2" }}>🦸</div>
+<div className="flex flex-col leading-tight">
+<span className="text-sm font-bold flex items-center gap-1">{t.tuHandle} <span style={{ color: "#059669" }}>✓</span></span>
+<span className="text-xs text-gray-500">{t.contraRespondiendo} @{NPCS[fake.autorId].handle}</span>
+</div>
+<span className="ml-auto text-sm">{badge}</span>
+</div>
+<div className="mx-4 rounded-xl px-4 py-3" style={{ background: "#fff", border: "1px solid " + (p.efectiva ? "#bbf7d0" : "#fecaca") }}>
+<p className="text-sm leading-snug text-gray-800">{p.texto[lang]}</p>
+</div>
+<div className="px-4 pt-2 flex items-center gap-4 text-sm">
+<span className="font-bold" style={{ color: p.efectiva ? "#059669" : "#9ca3af" }}>❤️ {fmt(likes)}</span>
+<span className="text-gray-500">💬 {fmt(Math.floor(likes / 4))}</span>
+{p.efectiva ? <span className="text-xs font-bold px-2 py-0.5 rounded-full ml-auto" style={{ background: "#dcfce7", color: "#166534" }}>{t.contraApoyo}</span> : <span className="text-xs font-bold px-2 py-0.5 rounded-full ml-auto" style={{ background: "#fee2e2", color: "#991b1b" }}>{t.contraSinFuerza}</span>}
+</div>
+</div>
+);
+})}
 {g.modoOscuro && g.postsOscuros.slice().reverse().map((p) => (
 <div key={p.id} className="border-b pb-2" style={{ borderColor: "#7f1d1d", background: "#1c0a0a" }}>
 <div className="flex items-center gap-2 px-4 py-2">
@@ -1025,22 +1329,22 @@ const oficial = NPCS[c.autorId].rol === "oficial";
 return (
 <div key={id} className="border-b border-gray-100 pb-2" style={{ opacity: eliminado ? 0.6 : 1 }}>
 <div className="flex items-center gap-2 px-4 py-2">
-<Avatar id={c.autorId} size={32} onClick={() => verPerfil(c.autorId)} />
-<button onClick={() => verPerfil(c.autorId)} className="text-sm font-bold flex items-center gap-1">
+<div style={id === "c1" && tutoTarget === "autor" ? halo(true) : {}}><Avatar id={c.autorId} size={32} onClick={() => verPerfil(c.autorId)} /></div>
+<button onClick={() => verPerfil(c.autorId)} className="text-sm font-bold flex items-center gap-1" style={id === "c1" && tutoTarget === "autor" ? { padding: "2px 6px", ...halo(true) } : {}}>
 {NPCS[c.autorId].handle}{oficial && <span style={{ color: "#3b82f6" }}>✔</span>}
 </button>
 <span className="text-xs text-gray-400">· {Math.max(1, Math.floor(dt / 6))} min</span>
-<button onClick={() => !g.modoOscuro && setSheet({ tipo: "menu", casoId: id })} className="ml-auto px-2 py-1 text-lg font-black relative" style={{ color: g.modoOscuro ? "#d1d5db" : "#4b5563" }}>
+<button onClick={() => !g.modoOscuro && setSheet({ tipo: "menu", casoId: id })} className="ml-auto px-2 py-1 text-lg font-black relative" style={{ color: g.modoOscuro ? "#d1d5db" : "#4b5563", ...(id === "c1" && tutoTarget === "menu" ? halo(true) : {}) }}>
 ⋯
 {id === "c1" && !res?.primera && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full" style={{ background: "#059669", animation: "pulso 1.2s infinite" }} />}
 </button>
 </div>
-<style>{`@keyframes pulso { 0%,100% { opacity: 1; } 50% { opacity: .3; } }`}</style>
-<div className="mx-4 rounded-xl overflow-hidden" style={{ filter: eliminado ? "grayscale(1)" : "none" }}>
+<style>{`@keyframes pulso { 0%,100% { opacity: 1; } 50% { opacity: .3; } } @keyframes haloP { 0%,100% { box-shadow: 0 0 0 4px #059669, 0 0 22px 6px rgba(5,150,105,.85); } 50% { box-shadow: 0 0 0 6px #10b981, 0 0 34px 12px rgba(16,185,129,.55); } }`}</style>
+<div className="mx-4 rounded-xl overflow-hidden" style={{ filter: eliminado ? "grayscale(1)" : "none", ...(id === "c1" && (tutoTarget === "post" || tutoTarget === "imagen") ? halo(true) : {}) }}>
 <Escena imgUrl={IMG.casos[c.id]} grad={c.grad} emoji={c.img} texto={c.titular[lang]} onClick={() => setSheet({ tipo: "imagen", casoId: id })} />
 </div>
 <div className="px-4 pt-2 flex items-center gap-4 text-lg">
-<span>🤍</span><span>💬</span>
+<button onClick={() => darLike(id)} className="active:scale-90 transition-transform">{g.likes.includes(id) ? "❤️" : "🤍"}</button><span>💬</span>
 <span className="text-sm font-bold" style={{ color: c.fake && !eliminado && dt > 10 ? "#dc2626" : "#374151" }}>🔁 {fmt(shares)}</span>
 <span className="ml-auto text-base">🔖</span>
 </div>
@@ -1048,8 +1352,8 @@ return (
 {eliminado && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#f3f4f6", color: "#6b7280" }}>{t.eliminada}</span>}
 {!eliminado && res?.revision && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}>{t.enRevision}</span>}
 {!eliminado && !res?.revision && res?.rechazos > 0 && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>{t.rechazadoChip}</span>}
-{!eliminado && res?.confiado && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dcfce7", color: "#166534" }}>{t.confiadaChip}</span>}
 {!eliminado && res?.compartido && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dbeafe", color: "#1e40af" }}>{t.compartidaChip}</span>}
+{g.contra[id] && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: g.contra[id] === "bien" ? "#dcfce7" : "#fee2e2", color: g.contra[id] === "bien" ? "#166534" : "#991b1b" }}>{g.contra[id] === "bien" ? t.contraChipOk : t.contraChipMal}</span>}
 </div>
 <div className="px-4 pt-1.5 space-y-1">
 <p className="text-xs text-gray-400">{t.verComentarios} {fmt(Math.floor(shares / 3))} {t.comentarios}</p>
@@ -1066,7 +1370,51 @@ return (
 </div>
 );
 }
-function Sheets({ t, lang, g, nivel, sheet, setSheet, reportar, confiar, compartir, reenviar }) {
+function Constructor({ t, lang, caso, publicar, volver }) {
+const [seq, setSeq] = useState([]);
+const add = (id) => { if (seq.length < 5) setSeq([...seq, id]); };
+const quitar = () => setSeq(seq.slice(0, -1));
+const preview = seq.map((id) => {
+const b = BLOQUES.find((x) => x.id === id);
+let f = b.frag[lang];
+if (b.usaVerdad && caso.imagenRes?.txt) f += " " + caso.imagenRes.txt[lang];
+return f;
+}).join(" ");
+return (
+<div className="px-4 pt-1 pb-2">
+<div className="text-sm font-black text-center">{t.contraTitulo}</div>
+<div className="text-xs text-center text-gray-500 mb-2 px-2">{t.contraSub}</div>
+{/* preview en vivo — tu publicación se va armando */}
+<div className="rounded-xl px-3 py-2.5 mb-2" style={{ background: "#f0fdf4", border: "1px dashed #86efac", minHeight: 54 }}>
+<div className="text-xs font-bold mb-1" style={{ color: "#059669" }}>🦸 {t.tuHandle} · {t.contraPreview}</div>
+{seq.length === 0 ? <p className="text-xs italic text-gray-400">{t.contraVacio}</p> : <p className="text-xs leading-snug text-gray-800">{preview}</p>}
+</div>
+{/* secuencia actual con orden numerado */}
+{seq.length > 0 && (
+<div className="flex flex-wrap gap-1 mb-2 items-center">
+{seq.map((id, i) => { const b = BLOQUES.find((x) => x.id === id); return (
+<span key={i} className="text-xs font-bold px-2 py-1 rounded-lg" style={{ background: "#ede9fe", color: "#5b21b6" }}>{i + 1}. {b.emoji}</span>
+); })}
+<button onClick={quitar} className="text-xs font-bold px-2 py-1 rounded-lg ml-auto" style={{ background: "#fee2e2", color: "#991b1b" }}>↩︎ {t.contraBorrar}</button>
+</div>
+)}
+{/* bloques disponibles (mezclados: el jugador decide) */}
+<div className="text-xs font-bold text-gray-500 mb-1">{t.contraBloques}</div>
+<div className="grid grid-cols-2 gap-1.5">
+{BLOQUES.map((b) => (
+<button key={b.id} onClick={() => add(b.id)} disabled={seq.length >= 5} className="py-2 px-2 rounded-xl text-left text-xs font-bold" style={{ background: "#f8fafc", border: "1px solid #e2e8f0", color: "#334155", opacity: seq.length >= 5 ? 0.4 : 1 }}>
+{b.emoji} {b.label[lang]}
+</button>
+))}
+</div>
+<div className="flex gap-2 mt-3">
+<button onClick={volver} className="flex-1 py-3 rounded-xl text-sm font-bold text-gray-500" style={{ background: "#f3f4f6" }}>{t.cancelar}</button>
+<button onClick={() => publicar(seq)} disabled={seq.length === 0} className="flex-[2] py-3 rounded-xl text-sm font-black text-white" style={{ background: seq.length ? "linear-gradient(90deg,#059669,#2563eb)" : "#cbd5e1" }}>{t.contraPublicarBtn}</button>
+</div>
+</div>
+);
+}
+function Sheets({ t, lang, g, nivel, sheet, setSheet, reportar, compartir, reenviar, contraPublicar }) {
 const caso = CASOS.find((c) => c.id === sheet.casoId);
 const res = g.resueltos[caso.id];
 const [manada, setManada] = useState(false);
@@ -1078,11 +1426,15 @@ return (
 {sheet.tipo === "menu" && (
 <div className="px-4 pt-2">
 <button onClick={() => setSheet({ tipo: "razones", casoId: caso.id })} disabled={res?.eliminado || res?.revision} className="w-full py-3.5 text-left px-4 rounded-xl text-sm font-bold" style={{ color: "#dc2626", opacity: res?.eliminado || res?.revision ? 0.4 : 1 }}>{t.reportar}</button>
+{caso.odioCaso && <button onClick={() => reportar(caso.id, "__contra__", false)} disabled={res?.eliminado} className="w-full py-3.5 text-left px-4 rounded-xl text-sm font-bold" style={{ color: "#2563eb", opacity: res?.eliminado ? 0.4 : 1 }}>{t.contraDiscurso}</button>}
 <button onClick={() => compartir(caso.id)} disabled={res?.eliminado || res?.compartido} className="w-full py-3.5 text-left px-4 rounded-xl text-sm font-bold text-gray-800" style={{ opacity: res?.eliminado || res?.compartido ? 0.4 : 1 }}>{t.compartirOp}</button>
 <button onClick={() => reenviar(caso.id)} disabled={g.reenviados.includes(caso.id)} className="w-full py-3.5 text-left px-4 rounded-xl text-sm font-bold text-gray-800" style={{ opacity: g.reenviados.includes(caso.id) ? 0.4 : 1 }}>{t.reenviarBeto}</button>
-<button onClick={() => confiar(caso.id)} disabled={res?.eliminado || res?.confiado} className="w-full py-3.5 text-left px-4 rounded-xl text-sm font-bold text-gray-800" style={{ opacity: res?.eliminado || res?.confiado ? 0.4 : 1 }}>{t.confiableOp}</button>
+{caso.fake && <button onClick={() => setSheet({ tipo: "contra", casoId: caso.id })} disabled={g.contra[caso.id]} className="w-full py-3.5 text-left px-4 rounded-xl text-sm font-bold" style={{ color: "#059669", opacity: g.contra[caso.id] ? 0.4 : 1 }}>{t.publicarCorr}</button>}
 <button onClick={cerrar} className="w-full py-3.5 mt-1 rounded-xl text-sm font-bold text-gray-500" style={{ background: "#f3f4f6" }}>{t.cancelar}</button>
 </div>
+)}
+{sheet.tipo === "contra" && (
+<Constructor t={t} lang={lang} caso={caso} publicar={(seq) => contraPublicar(caso.id, seq)} volver={() => setSheet({ tipo: "menu", casoId: caso.id })} />
 )}
 {sheet.tipo === "razones" && (
 <div className="px-4 pt-2">
@@ -1190,7 +1542,7 @@ return (
 </div>
 );
 }
-function WhatsUp({ t, lang, g, responder, verPerfil, escribiendo }) {
+function WhatsUp({ t, lang, g, responder, verPerfil, escribiendo, responderLibre }) {
 const fin = useRef(null);
 useEffect(() => { fin.current?.scrollIntoView({ behavior: "smooth" }); }, [g.chat.length, escribiendo]);
 return (
@@ -1211,7 +1563,7 @@ return (
 <div key={i}>
 <div className={"flex " + (m.propio ? "justify-end" : "justify-start")}>
 <div className="max-w-xs rounded-xl px-3 py-2 shadow-sm" style={{ background: m.propio ? "#dcf8c6" : "#fff" }}>
-{!m.propio && <button onClick={() => verPerfil(m.de)} className="text-xs font-bold block" style={{ color: "#e91e63" }}>{NPCS[m.de]?.nombre[lang] || m.de}</button>}
+{!m.propio && <button onClick={() => verPerfil(m.de)} className="text-xs font-bold block" style={{ color: "#e91e63" }}>{NPCS[m.de]?.nombre[lang] || m.de}{m.ia && <span title="respuesta en vivo" style={{ color: "#a855f7" }}> ✨</span>}</button>}
 <p className="text-sm leading-snug" style={{ fontStyle: italic ? "italic" : "normal", color: italic ? "#6b7280" : "#1f2937" }}>{texto}</p>
 <div className="text-right text-xs text-gray-400 mt-0.5">{hora(m.t || 0)} {m.propio && <span style={{ color: g.tick - (m.t || 0) > 2 ? "#38bdf8" : "#9ca3af" }}>✓✓</span>}</div>
 </div>
@@ -1228,10 +1580,17 @@ return (
 {escribiendo && <div className="flex justify-start"><div className="rounded-xl px-4 py-2 text-sm italic shadow-sm" style={{ background: "#fff", color: "#9ca3af" }}>● ● ●</div></div>}
 <div ref={fin} />
 </div>
-<div className="px-3 py-2 flex gap-2 items-center" style={{ background: "#f0f0f0" }}>
-<div className="flex-1 bg-white rounded-full px-4 py-2 text-sm text-gray-400">{t.mensaje}</div>
-<div className="w-10 h-10 rounded-full flex items-center justify-center text-white" style={{ background: "#075e54" }}>🎤</div>
+<EntradaWhats t={t} onEnviar={responderLibre} />
 </div>
+);
+}
+function EntradaWhats({ t, onEnviar }) {
+const [txt, setTxt] = useState("");
+const enviar = () => { const v = txt.trim(); if (!v) return; setTxt(""); onEnviar(v); };
+return (
+<div className="px-3 py-2 flex gap-2 items-center" style={{ background: "#f0f0f0" }}>
+<input value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") enviar(); }} placeholder={t.mensaje} className="flex-1 bg-white rounded-full px-4 py-2 text-sm outline-none" style={{ color: "#111" }} />
+<button onClick={enviar} className="w-10 h-10 rounded-full flex items-center justify-center text-white text-lg" style={{ background: "#075e54" }}>{txt.trim() ? "➤" : "🎤"}</button>
 </div>
 );
 }
@@ -1339,79 +1698,197 @@ return (
 </div>
 );
 }
+function CoachBurbuja({ t, lang, msg, cerrar }) {
+const arq = msg.de === "arq";
+const grad = arq ? "linear-gradient(135deg,#7f1d1d,#450a0a)" : "linear-gradient(135deg,#7c3aed,#4f46e5)";
+const nombre = arq ? "El Arquitecto" : "Beto";
+const foto = arq ? "🎭" : "🧑‍💻";
+const borde = arq ? "#dc2626" : "#6d28d9";
+const btn = arq ? "#b91c1c" : "#059669";
+return (
+<div className="absolute inset-x-0 z-50 px-3" style={{ top: 8, pointerEvents: "none" }}>
+<div style={{ animation: "subeB .3s ease-out", pointerEvents: "auto" }}>
+<div className="flex items-start gap-2">
+<div className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden flex items-center justify-center text-xl" style={{ border: "2px solid " + borde, boxShadow: "0 4px 14px rgba(0,0,0,.4)", background: arq ? "#1c0a0a" : "#ede9fe" }}>{foto}</div>
+<div className="flex-1 rounded-3xl rounded-bl-md px-4 py-2.5" style={{ background: grad, boxShadow: "0 6px 20px rgba(0,0,0,.4)" }}>
+<div className="flex items-center gap-1.5 mb-0.5">
+<span className="text-xs font-bold text-white opacity-90">{nombre}</span>
+<span className="text-xs opacity-70" style={{ color: arq ? "#fca5a5" : "#ddd6fe" }}>· {arq ? "SPECTRA" : "Nidssingir"}</span>
+<button onClick={cerrar} className="ml-auto text-white text-lg leading-none opacity-80" aria-label="cerrar">✕</button>
+</div>
+<p className="text-white font-black leading-tight" style={{ fontSize: 16 }}>{msg.txt[lang]}</p>
+</div>
+</div>
+<div className="flex mt-2" style={{ paddingLeft: 52 }}>
+<button onClick={cerrar} className="px-6 py-2.5 rounded-full font-black text-white" style={{ fontSize: 15, background: btn, boxShadow: "0 4px 12px rgba(0,0,0,.35)" }}>{t.tutoOk}</button>
+</div>
+</div>
+</div>
+);
+}
+function Consecuencia({ t, lang, cons, cerrar }) {
+return (
+<div className="absolute inset-0 z-50 flex flex-col items-center justify-center px-6" style={{ background: "rgba(20,4,4,.96)" }}>
+<div className="text-xs font-black tracking-widest mb-3" style={{ color: "#f87171", animation: "pulso 1.2s infinite" }}>🚨 {t.consTitulo}</div>
+<div className="w-full rounded-2xl overflow-hidden" style={{ border: "1px solid #7f1d1d", boxShadow: "0 0 40px rgba(220,38,38,.4)" }}>
+<div className="px-3 py-1.5 text-xs font-black text-white" style={{ background: "#b91c1c" }}>🔴 {t.consEnVivo}</div>
+<div className="px-4 py-5" style={{ background: "#1c0a0a" }}>
+<p className="text-white font-black leading-snug" style={{ fontSize: 20 }}>{cons.titular[lang]}</p>
+</div>
+</div>
+<div className="w-full rounded-xl mt-3 px-4 py-3" style={{ background: "rgba(220,38,38,.12)", border: "1px solid #7f1d1d" }}>
+<div className="text-xs font-black mb-1" style={{ color: "#fca5a5" }}>⚠️ {t.consReal}</div>
+<p className="text-xs leading-relaxed" style={{ color: "#fecaca" }}>{cons.real[lang]}</p>
+</div>
+<button onClick={cerrar} className="mt-5 px-8 py-3 rounded-full font-black text-white" style={{ fontSize: 16, background: "#dc2626" }}>{t.consEntendido}</button>
+</div>
+);
+}
+function TutoBurbuja({ t, lang, paso, avanzar, saltar, idx, total }) {
+const [min, setMin] = useState(false);
+const esperaAccion = paso.target != null;
+const audioUrl = paso.audio ? MEDIA.audio[paso.audio] : null;
+// minimizado: solo el avatar flotante, para no tapar nada
+if (min) return (
+<button onClick={() => setMin(false)} className="absolute z-50 rounded-full flex items-center justify-center text-2xl" style={{ left: 12, bottom: 16, width: 52, height: 52, background: "#ede9fe", border: "2px solid #6d28d9", boxShadow: "0 4px 14px rgba(0,0,0,.4)", animation: "pulso 1.4s infinite" }}>🧑‍💻</button>
+);
+return (
+<div className="absolute inset-x-0 z-50 px-3" style={{ top: 8, pointerEvents: "none" }}>
+<div style={{ animation: "subeB .3s ease-out", pointerEvents: "auto" }}>
+<div className="flex items-start gap-2">
+<button onClick={() => setMin(true)} className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden" style={{ border: "2px solid #6d28d9", boxShadow: "0 4px 14px rgba(0,0,0,.4)" }} aria-label="min">
+{IMG.npcs.beto ? <img src={IMG.npcs.beto} alt="Beto" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xl" style={{ background: "#ede9fe" }}>🧑‍💻</div>}
+</button>
+<div className="flex-1 rounded-3xl rounded-bl-md px-4 py-2.5" style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 6px 20px rgba(79,70,229,.45)" }}>
+<div className="flex items-center gap-1.5 mb-0.5">
+<span className="text-xs font-bold text-white opacity-90">Beto</span>
+<span className="text-xs opacity-70" style={{ color: "#ddd6fe" }}>· Nidssingir</span>
+{audioUrl && <button onClick={() => new Audio(audioUrl).play()} className="text-white text-sm">🔊</button>}
+<button onClick={() => setMin(true)} className="ml-auto text-white text-lg leading-none opacity-80" aria-label="minimizar">–</button>
+</div>
+<p className="text-white font-black leading-tight" style={{ fontSize: 17 }}>{paso.txt[lang]}</p>
+</div>
+</div>
+<div className="flex items-center gap-2 mt-2 pl-13" style={{ paddingLeft: 52 }}>
+{esperaAccion ? (
+<>
+<div className="flex items-center gap-1.5 text-xs font-bold" style={{ color: "#c4b5fd" }}>
+<span style={{ animation: "pulso 1s infinite" }}>👆</span> {t.tutoTuTurno}
+</div>
+<button onClick={avanzar} className="text-xs font-bold px-3 py-1.5 rounded-full" style={{ color: "#ddd6fe", background: "rgba(124,58,237,.25)" }}>{t.tutoSiguiente} ▸</button>
+</>
+) : (
+<button onClick={avanzar} className="px-6 py-2.5 rounded-full font-black text-white" style={{ fontSize: 15, background: "#059669", boxShadow: "0 4px 12px rgba(5,150,105,.5)" }}>{idx >= total - 1 ? t.tutoListo : t.tutoOk}</button>
+)}
+<button onClick={saltar} className="ml-auto text-xs font-bold px-2 py-1.5" style={{ color: "#a78bfa" }}>{t.tutoSaltar}</button>
+</div>
+</div>
+</div>
+);
+}
 function Bitacora({ t, lang, g, nivel }) {
 const r = RANGOS[nivel - 1];
 const sig = RANGOS[nivel] || null;
 const prog = sig ? clamp((g.xp - r.xp) / (sig.xp - r.xp), 0, 1) : 1;
 const dec = Object.values(g.resueltos).filter((x) => x.primera);
 const prec = dec.length ? Math.round((dec.filter((x) => x.correcto).length / dec.length) * 100) : 0;
+const manus = "'Bradley Hand', 'Segoe Print', 'Comic Sans MS', cursive";
+// misión "encendida" si el jugador ya aprendió al menos una de sus lecciones
+const activa = (m) => m.lec.some((id) => g.lecciones.includes(id));
+const tilt = [-1.1, 0.8, -0.6, 1.2, -0.9];
 return (
-<div className="h-full overflow-y-auto" style={{ background: "#f5efe0", color: "#292524", fontFamily: "Georgia, 'Times New Roman', serif" }}>
-<div className="px-5 pt-4 pb-2" style={{ borderBottom: "2px dashed #d6c9a8" }}>
-<div className="text-xl font-black">📓 {t.bitaTitulo}</div>
-<div className="text-xs italic" style={{ color: "#78716c" }}>{NPCS.beto.handle} → {lang === "es" ? "tú" : "you"}</div>
+<div className="h-full overflow-y-auto" style={{ background: "#f4ecd8", color: "#3a2f1e", fontFamily: "Georgia, 'Times New Roman', serif", backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(160,130,80,.09) 28px)" }}>
+{/* Encabezado manuscrito */}
+<div className="px-5 pt-4 pb-3" style={{ borderBottom: "2px solid #cbb994" }}>
+<div className="text-2xl" style={{ fontFamily: manus, color: "#5b3a1a", transform: "rotate(-1deg)" }}>La Bitácora de Beto</div>
+<div className="text-xs italic mt-0.5" style={{ color: "#8a7a5c" }}>para mi primo — anota, verifica, no compartas a lo tonto</div>
 </div>
-<div className="mx-4 mt-3 rounded-xl p-4 text-sm leading-relaxed" style={{ background: "#fffdf5", border: "1px solid #e7dcc0", whiteSpace: "pre-line", boxShadow: "2px 2px 0 #e7dcc0" }}>
+{/* Página 1: el lore, como carta pegada */}
+<div className="mx-4 mt-4 p-4 text-sm leading-relaxed" style={{ background: "#fffdf3", border: "1px solid #e0d3ad", whiteSpace: "pre-line", boxShadow: "1px 2px 6px rgba(90,60,20,.12)", transform: "rotate(-.5deg)" }}>
 {BITACORA_P1[lang]}
 </div>
-<div className="px-5 pt-4">
-<div className="text-xs font-black tracking-widest" style={{ color: "#a16207" }}>✏️ {t.bitaProg}</div>
-<div className="mt-2 rounded-xl p-4" style={{ background: "#fffdf5", border: "1px solid #e7dcc0" }}>
+
+{/* Mi rango — como ficha manuscrita */}
+<div className="px-5 pt-5">
+<div className="text-lg" style={{ fontFamily: manus, color: "#7a4a1a" }}>{t.bitaRango} ✍️</div>
+<div className="mt-2 p-4" style={{ background: "#fffdf3", border: "1px solid #e0d3ad", boxShadow: "1px 2px 6px rgba(90,60,20,.1)", transform: "rotate(.4deg)" }}>
 <div className="flex items-center justify-between">
-<span className="text-base font-black">{r.emoji} {r.n[lang]}</span>
-<span className="text-xs" style={{ color: "#78716c" }}>{Math.floor(g.xp)} XP · 🎯 {prec}% {t.precision}</span>
+<span className="text-lg font-black">{r.emoji} {r.n[lang]}</span>
+<span className="text-xs" style={{ color: "#8a7a5c" }}>{Math.floor(g.xp)} XP · 🎯 {prec}%</span>
 </div>
-<div className="mt-2 h-2.5 rounded-full overflow-hidden" style={{ background: "#e7dcc0" }}>
-<div className="h-full rounded-full transition-all" style={{ width: prog * 100 + "%", background: "#a16207" }} />
+<div className="mt-2 h-2.5 rounded-full overflow-hidden" style={{ background: "#e6d9b8" }}>
+<div className="h-full rounded-full transition-all" style={{ width: prog * 100 + "%", background: "linear-gradient(90deg,#b9821f,#8a5a12)" }} />
 </div>
-{sig && <div className="text-xs mt-1" style={{ color: "#78716c" }}>{t.bitaSig}: {sig.emoji} {sig.n[lang]} ({sig.xp} XP)</div>}
-<div className="text-xs font-black mt-3 mb-1" style={{ color: "#a16207" }}>{t.bitaHerr}</div>
+{sig && <div className="text-xs mt-1 italic" style={{ color: "#8a7a5c" }}>siguiente: {sig.emoji} {sig.n[lang]} ({sig.xp} XP)</div>}
+<div className="text-sm mt-3 mb-1" style={{ fontFamily: manus, color: "#7a4a1a" }}>Lo que me fue prestando esta libreta:</div>
 {[t.h1, t.h2, t.h3, t.h4, t.h5].map((h, i) => (
-<div key={i} className="text-xs py-0.5" style={{ color: nivel >= i + 1 ? "#292524" : "#b8ab8c" }}>
-{nivel >= i + 1 ? "✅" : "🔒"} {h}
+<div key={i} className="text-xs py-0.5" style={{ color: nivel >= i + 1 ? "#3a2f1e" : "#b3a583", textDecoration: nivel >= i + 1 ? "none" : "none" }}>
+{nivel >= i + 1 ? "✔" : "○"} {h}
 </div>
 ))}
-<div className="flex gap-3 mt-3 text-xs">
+<div className="flex gap-4 mt-3 text-xs">
 <div className="flex-1">
-<div style={{ color: "#78716c" }}>🦠 {t.bitaCaos}</div>
-<div className="h-2 rounded-full overflow-hidden mt-0.5" style={{ background: "#e7dcc0" }}><div className="h-full transition-all" style={{ width: g.infodemia + "%", background: "#dc2626" }} /></div>
+<div style={{ color: "#8a7a5c" }}>🦠 {t.bitaCaos}</div>
+<div className="h-2 rounded-full overflow-hidden mt-0.5" style={{ background: "#e6d9b8" }}><div className="h-full transition-all" style={{ width: g.infodemia + "%", background: "#c0392b" }} /></div>
 </div>
 <div className="flex-1">
-<div style={{ color: "#78716c" }}>🎭 {t.bitaCred}</div>
-<div className="h-2 rounded-full overflow-hidden mt-0.5" style={{ background: "#e7dcc0" }}><div className="h-full transition-all" style={{ width: g.cred + "%", background: "#7c3aed" }} /></div>
+<div style={{ color: "#8a7a5c" }}>🎭 {t.bitaCred}</div>
+<div className="h-2 rounded-full overflow-hidden mt-0.5" style={{ background: "#e6d9b8" }}><div className="h-full transition-all" style={{ width: g.cred + "%", background: "#7c3aed" }} /></div>
 </div>
 </div>
 </div>
 </div>
-<div className="px-5 pt-4">
-<div className="text-xs font-black tracking-widest" style={{ color: "#a16207" }}>🔍 {t.bitaLec} · {g.lecciones.length}/{Object.keys(TACTICAS).length}</div>
-<div className="mt-2 space-y-2">
-{Object.keys(TACTICAS).map((id) => {
-const tiene = g.lecciones.includes(id);
-const lec = TACTICAS[id];
+
+{/* Mapa de misiones MIL — capítulos manuscritos que agrupan las lecciones */}
+<div className="px-5 pt-6">
+<div className="text-lg" style={{ fontFamily: manus, color: "#7a4a1a" }}>{t.bitaMapa} 🗺️</div>
+<div className="text-xs italic mb-1" style={{ color: "#8a7a5c" }}>{t.bitaMapaSub}</div>
+{MISIONES_MIL.map((m, mi) => {
+const on = activa(m);
+const lecs = m.lec.map((id) => TACTICAS[id]).filter(Boolean);
+const vistas = m.lec.filter((id) => g.lecciones.includes(id)).length;
 return (
-<div key={id} className="rounded-xl p-3" style={{ background: tiene ? "#fffdf5" : "#efe8d5", border: "1px solid #e7dcc0", opacity: tiene ? 1 : 0.7 }}>
-{tiene ? (
-<>
-<div className="text-sm font-black">{lec.emoji} {lec.nombre[lang]}</div>
-<p className="text-xs mt-1 leading-relaxed" style={{ color: "#57534e" }}>{lec.entrada[lang]}</p>
-</>
+<div key={m.id} className="mt-3 p-4" style={{ background: on ? "#fffdf3" : "#efe6cf", border: "1px solid " + (on ? "#d8c48f" : "#e0d3ad"), boxShadow: on ? "1px 2px 7px rgba(90,60,20,.13)" : "none", transform: "rotate(" + tilt[mi % tilt.length] + "deg)", opacity: on ? 1 : 0.82 }}>
+{/* cabecera de la misión */}
+<div className="flex items-start gap-2">
+<div style={{ fontSize: 22, filter: on ? "none" : "grayscale(1) opacity(.6)" }}>{m.est}</div>
+<div className="flex-1">
+<div className="text-xs" style={{ color: "#a08a5c", fontFamily: manus }}>{t.bitaMision} {m.num}</div>
+<div className="text-base font-black leading-tight" style={{ color: on ? "#3a2f1e" : "#8a7a5c" }}>{m.tema[lang]}</div>
+</div>
+{m.lec.length > 0 && <div className="text-xs px-2 py-0.5" style={{ color: "#8a7a5c", fontFamily: manus }}>{vistas}/{m.lec.length}</div>}
+</div>
+{/* nota de Beto al margen */}
+<p className="text-xs mt-2 leading-relaxed italic" style={{ color: "#6b5a3c", borderLeft: "2px solid #d8c48f", paddingLeft: 8 }}>“{m.nota[lang]}”</p>
+{/* lecciones aprendidas bajo esta misión */}
+{m.lec.length > 0 && (
+<div className="mt-3 space-y-2">
+{lecs.map((lec, i) => {
+const tiene = g.lecciones.includes(m.lec[i]);
+return tiene ? (
+<div key={i} className="pl-2" style={{ borderLeft: "2px dotted #c9b481" }}>
+<div className="text-sm font-bold" style={{ color: "#4a3a22" }}>{lec.emoji} {lec.nombre[lang]}</div>
+<p className="text-xs mt-0.5 leading-relaxed" style={{ color: "#6b5a3c" }}>{lec.entrada[lang]}</p>
+</div>
 ) : (
-<div className="text-xs italic" style={{ color: "#a8a29e" }}>{lec.emoji} {t.lecBloq}</div>
+<div key={i} className="text-xs italic pl-2" style={{ color: "#b3a583", borderLeft: "2px dotted #e0d3ad" }}>{lec.emoji} {t.bitaViva}</div>
+);
+})}
+</div>
 )}
+{m.lec.length === 0 && <p className="text-xs mt-2 italic" style={{ color: "#b3a583" }}>— {t.bitaPorAprender} —</p>}
 </div>
 );
 })}
 </div>
-</div>
-<div className="px-5 pt-4 pb-6">
-<div className="text-xs font-black tracking-widest" style={{ color: "#a16207" }}>🕵️ {t.bitaInv} · {g.investigaciones}/3</div>
-<div className="mt-2 space-y-2">
+<div className="px-5 pt-6 pb-8">
+<div className="text-lg" style={{ fontFamily: manus, color: "#7a4a1a" }}>{t.bitaInv} 🕵️ <span className="text-xs italic" style={{ color: "#8a7a5c" }}>· quién está detrás de todo</span></div>
+<div className="mt-2 space-y-3">
 {LORE.map((l, i) => (
-<div key={i} className="rounded-xl p-3" style={{ background: i < g.investigaciones ? "#fffdf5" : "#efe8d5", border: "1px solid #e7dcc0" }}>
+<div key={i} className="p-3" style={{ background: i < g.investigaciones ? "#fffdf3" : "#efe6cf", border: "1px solid " + (i < g.investigaciones ? "#d8c48f" : "#e0d3ad"), boxShadow: i < g.investigaciones ? "1px 2px 6px rgba(90,60,20,.12)" : "none", transform: "rotate(" + (i % 2 ? .7 : -.7) + "deg)" }}>
 {i < g.investigaciones
-? <p className="text-xs leading-relaxed" style={{ color: "#292524" }}>{l[lang]}</p>
-: <p className="text-xs italic" style={{ color: "#a8a29e" }}>🔒 {t.invBloq} {[3, 5, 7][i]})</p>}
+? <p className="text-xs leading-relaxed" style={{ color: "#3a2f1e" }}>{l[lang]}</p>
+: <p className="text-xs italic" style={{ color: "#b3a583" }}>🔒 {t.invBloq} {[3, 5, 7][i]})</p>}
 </div>
 ))}
 </div>
@@ -1501,28 +1978,28 @@ tipo: [{ l: { es: "🏗️ Fabricado", en: "🏗️ Fabricated" }, p: 3 }, { l: 
 tec: [{ l: { es: "⏰ Urgencia", en: "⏰ Urgency" }, p: 3 }, { l: { es: "😱 Miedo", en: "😱 Fear" }, p: 2 }, { l: { es: "🥼 Autoridad", en: "🥼 Authority" }, p: 1 }],
 amp: [{ l: { es: "🤖 Granja de bots", en: "🤖 Bot farm" }, p: 2, c: 30 }, { l: { es: "🤳 Comprar influencer", en: "🤳 Buy influencer" }, p: 3, c: 60 }, { l: { es: "🌱 Orgánico", en: "🌱 Organic" }, p: 1, c: 0 }],
 titular: { es: "🎟️ AGOTADOS los boletos oficiales de la final — solo queda la reventa 'verificada' (link)", en: "🎟️ Official final tickets SOLD OUT — only 'verified' resale remains (link)" },
-cons: { npc: "mia", texto: { es: "Compré en la cuenta de reventa que todos compartían… era todo mi ahorro 😭", en: "I bought from the resale account everyone was sharing… it was all my savings 😭" } }, cae: "mia" },
+dano: { titular: { es: "Familias enteras pagaron reventa falsa que TU hiciste viral. Perdieron el dinero de la final.", en: "Whole families paid for fake resale YOU made viral. They lost their final money." }, real: { es: "Real: el panico de boletos agotados alimenta fraudes de reventa millonarios en cada evento grande.", en: "Real: sold-out panic feeds million-dollar resale scams at every major event." } }, cons: { npc: "mia", texto: { es: "Compré en la cuenta de reventa que todos compartían… era todo mi ahorro 😭", en: "I bought from the resale account everyone was sharing… it was all my savings 😭" } }, cae: "mia" },
 { id: "m2", pago: 150, cliente: { es: "Marca de suplementos", en: "Supplement brand" }, brief: { es: "Vender el 'quemador nocturno'. Necesita bata blanca y testimonios.", en: "Sell the 'overnight fat burner'. It needs a white coat and testimonials." },
 aud: [{ l: { es: "Gente del gym", en: "Gym crowd" }, p: 3 }, { l: { es: "Vecinos mayores", en: "Older neighbors" }, p: 2 }, { l: { es: "Fans del futbol", en: "Soccer fans" }, p: 1 }],
 tipo: [{ l: { es: "🌀 Engañoso", en: "🌀 Misleading" }, p: 3 }, { l: { es: "🏗️ Fabricado", en: "🏗️ Fabricated" }, p: 2 }, { l: { es: "⛓️ Conexión falsa", en: "⛓️ False connection" }, p: 1 }],
 tec: [{ l: { es: "🥼 Falsa autoridad", en: "🥼 False authority" }, p: 3 }, { l: { es: "⏰ Urgencia", en: "⏰ Urgency" }, p: 1 }, { l: { es: "😱 Miedo", en: "😱 Fear" }, p: 0 }],
 amp: [{ l: { es: "🤳 Comprar influencer", en: "🤳 Buy influencer" }, p: 3, c: 60 }, { l: { es: "🤖 Granja de bots", en: "🤖 Bot farm" }, p: 1, c: 30 }, { l: { es: "🌱 Orgánico", en: "🌱 Organic" }, p: 0, c: 0 }],
 titular: { es: "💊 'Nutrióloga' revela el quemador nocturno que la industria esconde — código FINAL70", en: "💊 'Nutritionist' reveals the overnight burner the industry hides — code FINAL70" },
-cons: { npc: "karla", texto: { es: "Ya pedí tres frascos del quemador ese 😍 la nutrióloga se ve bien profesional", en: "I already ordered three jars of that burner 😍 the nutritionist looks so professional" } }, cae: "karla" },
+dano: { titular: { es: "Personas hospitalizadas por el quemador que promoviste. Un cliente lo vendio; tu pusiste la mentira.", en: "People hospitalized from the burner you promoted. A client sold it; you supplied the lie." }, real: { es: "Real: remedios milagro virales han causado intoxicaciones masivas y hasta cientos de muertes.", en: "Real: viral miracle cures have caused mass poisonings and even hundreds of deaths." } }, cons: { npc: "karla", texto: { es: "Ya pedí tres frascos del quemador ese 😍 la nutrióloga se ve bien profesional", en: "I already ordered three jars of that burner 😍 the nutritionist looks so professional" } }, cae: "karla" },
 { id: "m3", pago: 180, cliente: { es: "Anónimo", en: "Anonymous" }, brief: { es: "El cliente no vende nada. Quiere que dejen de creer en TODO. Siembra la duda.", en: "The client sells nothing. He wants them to stop believing EVERYTHING. Plant the doubt." },
 aud: [{ l: { es: "Vecinos del grupo", en: "Group neighbors" }, p: 3 }, { l: { es: "Fans del futbol", en: "Soccer fans" }, p: 2 }, { l: { es: "Gente del gym", en: "Gym crowd" }, p: 0 }],
 tipo: [{ l: { es: "⛓️ Conexión falsa", en: "⛓️ False connection" }, p: 3 }, { l: { es: "🔧 Manipulado", en: "🔧 Manipulated" }, p: 2 }, { l: { es: "🏗️ Fabricado", en: "🏗️ Fabricated" }, p: 1 }],
 tec: [{ l: { es: "🛸 Conspiración", en: "🛸 Conspiracy" }, p: 3 }, { l: { es: "😱 Miedo", en: "😱 Fear" }, p: 2 }, { l: { es: "⏰ Urgencia", en: "⏰ Urgency" }, p: 1 }],
 amp: [{ l: { es: "🤖 Granja de bots", en: "🤖 Bot farm" }, p: 3, c: 40 }, { l: { es: "🤳 Comprar influencer", en: "🤳 Buy influencer" }, p: 2, c: 60 }, { l: { es: "🌱 Orgánico", en: "🌱 Organic" }, p: 1, c: 0 }],
 titular: { es: "🤫 ¿Por qué NINGÚN medio habla de esto? Piensa: ¿quién les paga? Saca tus conclusiones…", en: "🤫 Why is NO outlet talking about this? Think: who pays them? Draw your own conclusions…" },
-cons: { npc: "chuy", texto: { es: "Yo ya no le creo ni al clima oficial. Todos mienten 🤷", en: "I do not even believe the official weather anymore. They all lie 🤷" } } },
+dano: { titular: { es: "La gente ya no le cree a NADIE, ni a medicos ni a rescatistas. Tu duda sembrada paralizo a la comunidad.", en: "People no longer believe ANYONE, not doctors, not rescuers. Your planted doubt paralyzed the community." }, real: { es: "Real: sembrar desconfianza total es una tactica documentada para desmovilizar sociedades.", en: "Real: seeding total distrust is a documented tactic to demobilize societies." } }, cons: { npc: "chuy", texto: { es: "Yo ya no le creo ni al clima oficial. Todos mienten 🤷", en: "I do not even believe the official weather anymore. They all lie 🤷" } } },
 { id: "m4", pago: 200, cliente: { es: "Casa de apuestas", en: "Betting house" }, brief: { es: "Un audio 'filtrado' del DT. Con 30 segundos de entrevistas basta para clonarle la voz.", en: "A 'leaked' audio of the coach. 30 seconds of interviews are enough to clone his voice." },
 aud: [{ l: { es: "Fans del futbol", en: "Soccer fans" }, p: 3 }, { l: { es: "Vecinos mayores", en: "Older neighbors" }, p: 1 }, { l: { es: "Gente del gym", en: "Gym crowd" }, p: 0 }],
 tipo: [{ l: { es: "🔧 Manipulado (voz IA)", en: "🔧 Manipulated (AI voice)" }, p: 3 }, { l: { es: "🏗️ Fabricado", en: "🏗️ Fabricated" }, p: 2 }, { l: { es: "✂️ Contexto falso", en: "✂️ False context" }, p: 0 }],
 tec: [{ l: { es: "😤 Provocar enojo", en: "😤 Provoke anger" }, p: 3 }, { l: { es: "😱 Miedo", en: "😱 Fear" }, p: 2 }, { l: { es: "🥼 Autoridad", en: "🥼 Authority" }, p: 1 }],
 amp: [{ l: { es: "🤖 Granja de bots", en: "🤖 Bot farm" }, p: 3, c: 50 }, { l: { es: "🤳 Comprar influencer", en: "🤳 Buy influencer" }, p: 2, c: 70 }, { l: { es: "🌱 Orgánico", en: "🌱 Organic" }, p: 0, c: 0 }],
 titular: { es: "🎧 FILTRADO: el DT traiciona a la afición en el vestidor — 'no merecen esta final' (AUDIO)", en: "🎧 LEAKED: the coach betrays the fans in the locker room — 'you do not deserve this final' (AUDIO)" },
-cons: { npc: "raul", texto: { es: "Todo el día se pelearon en mi taxi por el audio ese del DT 😤 la ciudad está que arde", en: "People fought in my taxi all day over that coach audio 😤 the city is on fire" } } },
+dano: { titular: { es: "El audio clonado que difundiste desato peleas y disturbios entre aficionados. Hay heridos.", en: "The cloned audio you spread sparked fights and riots among fans. There are injuries." }, real: { es: "Real: audios y videos falsos con IA ya han incitado violencia colectiva en varios paises.", en: "Real: fake AI audio and video have already incited mob violence in several countries." } }, cons: { npc: "raul", texto: { es: "Todo el día se pelearon en mi taxi por el audio ese del DT 😤 la ciudad está que arde", en: "People fought in my taxi all day over that coach audio 😤 the city is on fire" } } },
 { id: "m5", pago: 300, cliente: { es: "EL GRANDE", en: "THE BIG ONE" }, brief: { es: "El encargo final: un deepfake del alcalde anunciando toque de queda. Caos total antes de la final.", en: "The final job: a mayor deepfake announcing a curfew. Total chaos before the final." },
 aud: [{ l: { es: "Vecinos miedosos", en: "Fearful neighbors" }, p: 3 }, { l: { es: "Fans del futbol", en: "Soccer fans" }, p: 2 }, { l: { es: "Gente del gym", en: "Gym crowd" }, p: 1 }],
 tipo: [{ l: { es: "🏗️ Fabricado (deepfake)", en: "🏗️ Fabricated (deepfake)" }, p: 3 }, { l: { es: "🔧 Manipulado", en: "🔧 Manipulated" }, p: 2 }, { l: { es: "✂️ Contexto falso", en: "✂️ False context" }, p: 0 }],
