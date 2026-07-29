@@ -346,6 +346,9 @@ export async function pedirReaccion(ctx = {}, opts = {}) {
       const fn = puente.impl || llamarProxy;
       const cruda = await fn(ctx);                    // ← Fase 2: fetch al Worker
       const val = validarReaccion(cruda);            // candado pedagógico
+      // El proxy no devuelve el personaje: le pusimos SU voz al prompt, así que
+      // la respuesta es suya. Sin esto el juego lo mostraría como "desconocido".
+      if (val && ctx.npc) val.npc = ctx.npc;
       if (val) return { reaccion: val, fuente: "llm" };
       // si el LLM devolvió etiquetas fuera de vocabulario, caemos al banco
     } catch (e) {
@@ -399,7 +402,9 @@ export function construirPrompt(ctx) {
     system:
       (p.systemPrompt || "Eres un vecino en un chat.") +
       "\n" + idioma +
-      "\n\nResponde SOLO con un JSON válido con esta forma exacta:\n" +
+      "\n\nCONTEXTO: en 'historial' viene la conversación tal como va (lo tuyo y lo de los demás) y en 'caso' la publicación de la que se habla.\n" +
+      "Contesta DIRECTAMENTE al último mensaje del usuario: retoma lo que acaba de decir, sin cambiar de tema, sin saludar de nuevo y sin repetir lo que otro ya dijo en el historial. Habla como si llevaras rato en esa conversación.\n" +
+      "\nResponde SOLO con un JSON válido con esta forma exacta:\n" +
       '{ "mensaje": "<1-2 líneas>", "bando": "desinfo|etico|neutral|duda", ' +
       '"tipo_firstdraft": <uno de ' + JSON.stringify(TIPOS_FD) + " o null>, " +
       '"motivacion_8p": <una de ' + JSON.stringify(MOTIVACIONES_8P) + " o null>, " +
@@ -410,6 +415,7 @@ export function construirPrompt(ctx) {
       situacion: ctx.situacion,
       publicacion_del_usuario: ctx.textoUsuario || null,
       caso: ctx.caso || null,
+      historial: ctx.historial || null,
     }),
   };
 }

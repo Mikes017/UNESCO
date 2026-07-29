@@ -98,7 +98,7 @@ async function pedirAlProxy(cuerpo) {
 
 // Reacciones de NPC.
 async function llamarProxyReal(ctx) {
-  const { system, user } = construirPrompt(ctx);
+  const { system, user } = construirPrompt(ctx); // user ya lleva historial y caso
   return pedirAlProxy({ system, user, textoUsuario: ctx.textoUsuario || null });
 }
 

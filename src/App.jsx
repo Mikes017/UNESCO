@@ -558,7 +558,7 @@ return pool.length ? pool[Math.floor(Math.random() * pool.length)].npc : null;
 };
 const reaccionAgente = async (situacion, opts = {}) => {
 try {
-const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla: (opts.semilla || "") + situacion + Date.now(), textoUsuario: opts.textoUsuario, caso: opts.caso, lang });
+const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla: (opts.semilla || "") + situacion + Date.now(), textoUsuario: opts.textoUsuario, caso: opts.caso, historial: opts.historial, lang });
 if (!reaccion) return;
 const enComentario = opts.destino?.tipo === "coment";
 setG((s) => {
@@ -607,11 +607,15 @@ const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
 // 3) feedback determinista de Beto + efecto en la comunidad
 setG((s) => { let ng = { ...s }; aplicarFeedbackLibre(ng, fb, categoria); if (alerta) ng.alertaIA = alerta; return ng; });
 if (alerta) notificar("📡", alerta);
-// 4) y la familia te CONTESTA a lo que escribiste
+// 4) y la familia te CONTESTA a lo que escribiste, con el hilo a la vista
 const situacion = SITUACION_LIBRE[categoria] || "user_corrige_mal";
 const npc = npcDeSituacion(situacion);
+const historial = [
+...g.chat.slice(-6).map((m) => ({ de: m.propio ? "el jugador" : (NPCS[m.de]?.nombre[lang] || m.de), dice: txtMsg(m, lang) })),
+{ de: "el jugador", dice: txt },
+];
 setEscribiendoW(npc);
-try { await reaccionAgente(situacion, { npc, textoUsuario: txt, semilla: "libre" }); }
+try { await reaccionAgente(situacion, { npc, textoUsuario: txt, historial, semilla: "libre" }); }
 finally { setEscribiendoW(null); }
 };
 // Comentar en un post del feed: mismo circuito pedagógico, pero el NPC te
@@ -628,7 +632,13 @@ const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
 setG((s) => { let ng = { ...s }; aplicarFeedbackLibre(ng, fb, categoria); if (alerta) ng.alertaIA = alerta; return ng; });
 if (alerta) notificar("📡", alerta);
 const situacion = fb.ok === true ? "coment_en_correccion" : "coment_en_fake";
-await reaccionAgente(situacion, { npc: npcDeSituacion(situacion), textoUsuario: txt, caso: caso ? { titular: caso.titular[lang], fake: caso.fake } : null, destino: { tipo: "coment", casoId }, semilla: casoId });
+// el hilo del post: los comentarios que ya estaban + los tuyos
+const historial = [
+...(caso ? comentariosDe(caso, g, lang).map((cm) => ({ de: NPCS[cm.npc]?.nombre[lang] || cm.npc, dice: cm.texto })) : []),
+...(g.misComs[casoId] || []).map((cm) => ({ de: cm.propio ? "el jugador" : (NPCS[cm.de]?.nombre[lang] || cm.de), dice: cm.texto })),
+{ de: "el jugador", dice: txt },
+];
+await reaccionAgente(situacion, { npc: npcDeSituacion(situacion), textoUsuario: txt, caso: caso ? { titular: caso.titular[lang], fake: caso.fake } : null, historial, destino: { tipo: "coment", casoId }, semilla: casoId });
 } finally { setComentando(null); }
 };
 const encolar = (ng, canal, m, delay, noti) => { ng.cola = [...ng.cola, { en: delay, canal, m, noti }]; };
