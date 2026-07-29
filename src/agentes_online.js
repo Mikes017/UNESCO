@@ -19,9 +19,9 @@ import { puente, construirPrompt, construirPromptClasificacion, validarReaccion 
 // 👉 PON AQUÍ la URL de tu Worker tras `wrangler deploy`
 export const PROXY_URL = "https://verified-proxy.miguelgrnova.workers.dev";
 
-// Gemini razona antes de contestar: medido, tarda entre 5 y 9 s. El tope debe
-// dejar holgura o el juego se desconecta solo en llamadas perfectamente sanas.
-const TIMEOUT_MS = 20000;
+// Con Flash-Lite las respuestas llegan en ~1 s. Dejamos un tope amplio (redes
+// móviles lentas) sin llegar a congelar el juego si algo se atora.
+const TIMEOUT_MS = 12000;
 
 // Tras una caída volvemos a intentar, esperando cada vez un poco más.
 const RECONEXION_BASE_MS = 15000;

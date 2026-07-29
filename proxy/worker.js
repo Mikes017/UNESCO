@@ -27,7 +27,10 @@
 //    compatibility_date = "2026-07-01"
 // ============================================================================
 
-const MODELO = "gemini-3.6-flash"; // workhorse actual (jul 2026); barato y con 1M ctx
+// Flash-Lite: rápido y con la cuota gratuita más generosa. Ojo: los modelos
+// flagship (gemini-3.6-flash) traen solo 20 peticiones AL DÍA en el tier
+// gratuito, que se agotan en una sola demo.
+const MODELO = "gemini-3.5-flash-lite";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
 
 // --- Vocabularios (deben coincidir con agentes.js) --------------------------

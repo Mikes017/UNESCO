@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { pedirReaccion, puente, alertaDe, clasificar, FEEDBACK_USUARIO } from "./agentes.js";
+import { pedirReaccion, puente, alertaDe, clasificar, FEEDBACK_USUARIO, BANCO as BANCO_AGENTES } from "./agentes.js";
 // Para activar el LLM (tras desplegar el proxy de la Fase 2), descomenta:
 import { activarLLM } from "./agentes_online.js";
 // VERIFIED v3 — Prototipo (UNESCO Youth Hackathon 2026)
@@ -271,7 +271,7 @@ estado0: "Tu comunidad está tranquila… por ahora.", estado1: "🌡️ La desi
 appNews: "Noticias", appBita: "Bitácora", bloqueada: "🔒 Todavía no disponible",
 comoJugar: "Tu misión:", comoJugarTexto: " caza los fakes desde el menú ⋯ de cada post (la razón del reporte importa), protege a tu gente en WhatsUp y tumba la credibilidad del Arquitecto a 0.",
 feed: "Feed", dms: "DMs", resuelto: "resuelto",
-verComentarios: "Ver los", comentarios: "comentarios",
+verComentarios: "Ver los", comentarios: "comentarios", comentaAlgo: "Añade un comentario…", escribiendoCom: "escribiendo…",
 reportar: "🚩 Reportar", compartirOp: "📤 Compartir", reenviarBeto: "📩 Reenviar a Beto", publicarCorr: "✍️ Publicar corrección", cancelar: "Cancelar",
 contraTitulo: "✍️ Arma tu corrección", contraSub: "Construye tu mensaje pieza por pieza. El ORDEN importa: algunas combinaciones desarman el mito… otras lo empeoran.", contraPreview: "vista previa", contraVacio: "Toca los bloques de abajo para ir armando tu mensaje…", contraBloques: "Bloques (tócalos en el orden que quieras):", contraBorrar: "borrar último", contraPublicarBtn: "🚀 Publicar corrección", contraOk: "Corrección efectiva ✨ la comunidad te apoya", contraMal: "Salió el tiro por la culata ⚠️", contraChipOk: "✨ corregida", contraChipMal: "⚠️ empeoró", tuHandle: "tú", contraRespondiendo: "respondiendo a", contraApoyo: "🙌 la comunidad te apoya", contraSinFuerza: "😕 sin fuerza",
 porQueReportas: "¿Por qué reportas esta publicación?",
@@ -356,7 +356,7 @@ estado0: "Your community is calm… for now.", estado1: "🌡️ Disinformation 
 appNews: "News", appBita: "Notebook", bloqueada: "🔒 Not available yet",
 comoJugar: "Your mission:", comoJugarTexto: " hunt fakes from each post's ⋯ menu (the report reason matters), protect your people on WhatsUp, and drive the Architect's credibility to 0.",
 feed: "Feed", dms: "DMs", resuelto: "resolved",
-verComentarios: "View all", comentarios: "comments",
+verComentarios: "View all", comentarios: "comments", comentaAlgo: "Add a comment…", escribiendoCom: "typing…",
 reportar: "🚩 Report", compartirOp: "📤 Share", reenviarBeto: "📩 Forward to Beto", publicarCorr: "✍️ Publish a correction", cancelar: "Cancel",
 contraTitulo: "✍️ Build your correction", contraSub: "Build your message piece by piece. ORDER matters: some combinations disarm the myth… others make it worse.", contraPreview: "preview", contraVacio: "Tap the blocks below to build your message…", contraBloques: "Blocks (tap them in any order):", contraBorrar: "delete last", contraPublicarBtn: "🚀 Publish correction", contraOk: "Effective correction ✨ the community backs you", contraMal: "It backfired ⚠️", contraChipOk: "✨ corrected", contraChipMal: "⚠️ worsened", tuHandle: "you", contraRespondiendo: "replying to", contraApoyo: "🙌 community backs you", contraSinFuerza: "😕 no traction",
 porQueReportas: "Why are you reporting this post?",
@@ -483,7 +483,7 @@ cola: [
 { en: 9, canal: "dmBeto", m: { de: "beto", texto: { es: "El post de la tía está en el feed de Instagrama. Mi método: 1) toca su NOMBRE 👤 2) toca la IMAGEN 🔎 3) si dudas, reenvíamelo con ⋯ 📩 4) repórtalo con ⋯ y dime QUÉ TIPO de engaño es — el diagnóstico importa 🚩", en: "Auntie's post is on the Instagrama feed. My method: 1) tap their NAME 👤 2) tap the IMAGE 🔎 3) if in doubt, forward it via ⋯ 📩 4) report via ⋯ and tell me WHAT TYPE of deception it is — the diagnosis matters 🚩" }, propio: false } },
 ],
 familiaridad: 0, modoOscuro: false, koin: 0, misionIdx: 0, misionSel: {}, postsOscuros: [], traicion: false, finSeq: -1, ultimoRes: null,
-coach: [], _ck: [], tiposVistos: [], consVistas: [], afectados: {}, consecuencia: null, likes: [], contra: {}, apoyos: 0, misPosts: [], alertaIA: null, ultimaReaccion: null, respuestasLibres: 0,
+coach: [], _ck: [], tiposVistos: [], consVistas: [], afectados: {}, consecuencia: null, likes: [], contra: {}, apoyos: 0, misPosts: [], misComs: {}, alertaIA: null, ultimaReaccion: null, respuestasLibres: 0,
 historias: HIST_AMB.slice(0, 2).map((h) => ({ ...h, tipo: "amb", vista: false, respondida: false, expiraEn: 999 })),
 histSpawn: 24,
 lecciones: [], reenviados: [],
@@ -526,9 +526,12 @@ const [prevPant, setPrevPant] = useState("home");
 const [tutoPaso, setTutoPaso] = useState(0);
 const [tutoOn, setTutoOn] = useState(true);
 const [banners, setBanners] = useState([]);
+const [escribiendoW, setEscribiendoW] = useState(null); // NPC contestándote en WhatsUp
+const [comentando, setComentando] = useState(null);     // casoId con respuesta en camino
 const [finalesVistos, setFinalesVistos] = useState([]);
 const t = T[lang];
 const notificar = (titulo, texto) => {
+if (tutoOn && tutoPaso < TUTO.length) return; // durante el tutorial no tapamos a Beto
 const id = Date.now() + Math.random();
 setBanners((b) => [...b.slice(-1), { id, titulo, texto }]);
 setTimeout(() => setBanners((b) => b.filter((x) => x.id !== id)), 4200);
@@ -547,44 +550,86 @@ if (efecto === "cae" || efecto === "panico") { if (ng.comunidad[npc] === "sano" 
 else if (efecto === "duda") { if (ng.comunidad[npc] === "sano") ng.comunidad = { ...ng.comunidad, [npc]: "dudoso" }; }
 else if (efecto === "apoya" || efecto === "inmune") { if (ng.comunidad[npc] !== "caido") ng.comunidad = { ...ng.comunidad, [npc]: "inmune" }; }
 };
+// Elegimos el NPC del propio banco: así el LLM recibe una personalidad real y,
+// si cae a offline, la situación siempre tiene una respuesta para ese personaje.
+const npcDeSituacion = (situacion) => {
+const pool = BANCO_AGENTES[situacion] || [];
+return pool.length ? pool[Math.floor(Math.random() * pool.length)].npc : null;
+};
 const reaccionAgente = async (situacion, opts = {}) => {
 try {
-const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla: (opts.semilla || "") + situacion + Date.now(), textoUsuario: opts.textoUsuario, lang });
+const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla: (opts.semilla || "") + situacion + Date.now(), textoUsuario: opts.textoUsuario, caso: opts.caso, lang });
 if (!reaccion) return;
+const enComentario = opts.destino?.tipo === "coment";
 setG((s) => {
 let ng = { ...s };
-// mensaje vivo del NPC al grupo de WhatsUp
+if (enComentario) { // responde en el hilo del post, no en el grupo
+const casoId = opts.destino.casoId;
+ng.misComs = { ...ng.misComs, [casoId]: [...(ng.misComs[casoId] || []), { de: reaccion.npc, texto: reaccion.mensaje, ia: fuente === "llm" }] };
+} else { // mensaje vivo del NPC al grupo de WhatsUp
 ng.chat = [...ng.chat, { de: reaccion.npc, texto: { es: reaccion.mensaje, en: reaccion.mensaje }, propio: false, t: ng.tick, ia: fuente === "llm" }];
+}
 aplicarEfecto(ng, reaccion.npc, reaccion.efecto);
 // guardamos los metadatos (para Radiografía / diagnóstico futuros)
 ng.ultimaReaccion = { tipo: reaccion.tipo_firstdraft, motiv: reaccion.motivacion_8p, tec: reaccion.tecnica, mil: reaccion.mil, bando: reaccion.bando };
 if (alerta) ng.alertaIA = alerta; // se muestra como banner temático
 return ng;
 });
-setNoLeidosW((n) => n + 1);
+// si ya estás leyendo el grupo, el mensaje no cuenta como "no leído"
+if (!enComentario && pantalla !== "whats") setNoLeidosW((n) => n + 1);
 if (alerta) notificar("📡", alerta);
 } catch (e) { /* nunca romper el juego por una reacción */ }
 };
 // --- FASE 4: loop de texto libre → clasificación → feedback de Beto ---
-const responderLibre = async (texto) => {
-const txt = (texto || "").trim();
-if (!txt) return;
-// 1) el mensaje del usuario aparece en el chat
-setG((s) => ({ ...s, chat: [...s.chat, { de: "tu", texto: { es: txt, en: txt }, propio: true, t: s.tick }] }));
-// 2) clasificar (LLM si hay puente; si no, heurístico offline)
-const { categoria, fuente, alerta } = await clasificar(txt, {});
-const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
-// 3) feedback determinista de Beto + efecto en la comunidad (candado pedagógico)
-setG((s) => {
-let ng = { ...s };
+// Qué le toca contestar a la familia según lo que hiciste. Usa las mismas
+// claves del banco de agentes, así funciona igual con LLM y sin él.
+const SITUACION_LIBRE = {
+sandwich: "user_corrige_bien", hechos_fuente: "user_corrige_bien", empatia: "user_corrige_bien",
+repite_mito: "user_comparte_fake", cae: "user_comparte_fake",
+ataca_persona: "user_corrige_mal", solo_emocion: "user_corrige_mal", neutral: "user_corrige_mal",
+};
+// Beto enseña y la comunidad se mueve (candado pedagógico). Lo comparten el
+// chat del grupo y los comentarios del feed.
+const aplicarFeedbackLibre = (ng, fb, categoria) => {
 ng.coach = [...ng.coach, { de: "beto", txt: fb.txt }]; // Beto siempre enseña
 if (fb.ok === true) { const sanar = CIVILES.filter((k) => ng.comunidad[k] === "dudoso" || ng.comunidad[k] === "sano").slice(0, fb.efecto === "inmune" ? 2 : 1); for (const k of sanar) ng.comunidad = { ...ng.comunidad, [k]: "inmune" }; ganarXp(ng, categoria === "sandwich" ? 15 : 10); ng.infodemia = clamp(ng.infodemia - 4, 0, 100); if (fb.mil) aprenderLeccion(ng, fb.mil === 7 ? "etica" : fb.mil === 8 ? "empodera" : fb.mil === 9 ? "paz" : "acceso"); }
 else if (fb.ok === false) { ng.infodemia = clamp(ng.infodemia + (fb.efecto === "cae" ? 5 : 2), 0, 100); if (categoria === "repite_mito") ng.familiaridad = (ng.familiaridad || 0) + 2; }
 ng.respuestasLibres = (ng.respuestasLibres || 0) + 1;
-if (alerta) ng.alertaIA = alerta;
-return ng;
-});
+};
+const responderLibre = async (texto) => {
+const txt = (texto || "").trim();
+if (!txt || escribiendoW) return;
+// 1) el mensaje del usuario aparece en el chat
+setG((s) => ({ ...s, chat: [...s.chat, { de: "tu", texto: { es: txt, en: txt }, propio: true, t: s.tick }] }));
+// 2) clasificar (LLM si hay puente; si no, heurístico offline)
+const { categoria, alerta } = await clasificar(txt, {});
+const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
+// 3) feedback determinista de Beto + efecto en la comunidad
+setG((s) => { let ng = { ...s }; aplicarFeedbackLibre(ng, fb, categoria); if (alerta) ng.alertaIA = alerta; return ng; });
 if (alerta) notificar("📡", alerta);
+// 4) y la familia te CONTESTA a lo que escribiste
+const situacion = SITUACION_LIBRE[categoria] || "user_corrige_mal";
+const npc = npcDeSituacion(situacion);
+setEscribiendoW(npc);
+try { await reaccionAgente(situacion, { npc, textoUsuario: txt, semilla: "libre" }); }
+finally { setEscribiendoW(null); }
+};
+// Comentar en un post del feed: mismo circuito pedagógico, pero el NPC te
+// contesta dentro del hilo de ese post.
+const comentarLibre = async (casoId, texto) => {
+const txt = (texto || "").trim();
+if (!txt || comentando) return;
+const caso = CASOS.find((c) => c.id === casoId);
+setG((s) => ({ ...s, misComs: { ...s.misComs, [casoId]: [...(s.misComs[casoId] || []), { de: "tu", texto: txt, propio: true }] } }));
+setComentando(casoId);
+try {
+const { categoria, alerta } = await clasificar(txt, {});
+const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
+setG((s) => { let ng = { ...s }; aplicarFeedbackLibre(ng, fb, categoria); if (alerta) ng.alertaIA = alerta; return ng; });
+if (alerta) notificar("📡", alerta);
+const situacion = fb.ok === true ? "coment_en_correccion" : "coment_en_fake";
+await reaccionAgente(situacion, { npc: npcDeSituacion(situacion), textoUsuario: txt, caso: caso ? { titular: caso.titular[lang], fake: caso.fake } : null, destino: { tipo: "coment", casoId }, semilla: casoId });
+} finally { setComentando(null); }
 };
 const encolar = (ng, canal, m, delay, noti) => { ng.cola = [...ng.cola, { en: delay, canal, m, noti }]; };
 const ganarXp = (ng, cant) => {
@@ -1096,8 +1141,8 @@ else if (app === "spectra") setPantalla("spectra");
 else if (app === "bitacora" || app === "news") { if (!g.desbloqueado[app === "bitacora" ? "bitacora" : "news"]) return notificar("🔒", t.bloqueada); setPantalla(app); }
 else setPantalla(app);
 }} />}
-{pantalla === "insta" && <Instagrama t={t} lang={lang} g={g} nivel={nivel} vista={vistaInsta} setVista={setVistaInsta} noLeidosDM={noLeidosDM} setNoLeidosDM={setNoLeidosDM} setSheet={setSheet} verPerfil={setPerfil} verHistoria={(hid) => { setHistoria(hid); setG((s) => ({ ...s, historias: s.historias.map((h) => (h.id === hid ? { ...h, vista: true } : h)) })); }} escribiendo={escribiendoEn} responderOferta={responderOferta} abrirProto={() => setProto(true)} tutoTarget={tutoOn ? pasoT?.target : null} darLike={darLike} contraPublicar={contraPublicar} />}
-{pantalla === "whats" && <WhatsUp t={t} lang={lang} g={g} responder={responderPregunta} verPerfil={setPerfil} escribiendo={escribiendoEn("whats")} responderLibre={responderLibre} />}
+{pantalla === "insta" && <Instagrama t={t} lang={lang} g={g} nivel={nivel} vista={vistaInsta} setVista={setVistaInsta} noLeidosDM={noLeidosDM} setNoLeidosDM={setNoLeidosDM} setSheet={setSheet} verPerfil={setPerfil} verHistoria={(hid) => { setHistoria(hid); setG((s) => ({ ...s, historias: s.historias.map((h) => (h.id === hid ? { ...h, vista: true } : h)) })); }} escribiendo={escribiendoEn} responderOferta={responderOferta} abrirProto={() => setProto(true)} tutoTarget={tutoOn ? pasoT?.target : null} darLike={darLike} contraPublicar={contraPublicar} comentar={comentarLibre} comentando={comentando} />}
+{pantalla === "whats" && <WhatsUp t={t} lang={lang} g={g} responder={responderPregunta} verPerfil={setPerfil} escribiendo={escribiendoEn("whats") || escribiendoW} responderLibre={responderLibre} />}
 {pantalla === "bitacora" && !g.modoOscuro && <Bitacora t={t} lang={lang} g={g} nivel={nivel} />}
 {pantalla === "spectra" && g.modoOscuro && <Spectra t={t} lang={lang} g={g} elegir={selMision} publicar={publicarMision} traicionar={traicionar} />}
 {pantalla === "news" && <Noticias t={t} lang={lang} g={g} />}
@@ -1241,7 +1286,7 @@ out.push({ npc, texto: COMS.gratitud[lang][hash(caso.id, 9) % COMS.gratitud[lang
 }
 return out;
 }
-function Instagrama({ t, lang, g, nivel, vista, setVista, noLeidosDM, setNoLeidosDM, setSheet, verPerfil, verHistoria, escribiendo, responderOferta, abrirProto, tutoTarget, darLike, contraPublicar }) {
+function Instagrama({ t, lang, g, nivel, vista, setVista, noLeidosDM, setNoLeidosDM, setSheet, verPerfil, verHistoria, escribiendo, responderOferta, abrirProto, tutoTarget, darLike, contraPublicar, comentar, comentando }) {
 return (
 <div className="h-full flex flex-col bg-white">
 <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200">
@@ -1254,14 +1299,14 @@ return (
 </button>
 </div>
 </div>
-{vista === "feed" && <Feed t={t} lang={lang} g={g} setSheet={setSheet} verPerfil={verPerfil} verHistoria={verHistoria} tutoTarget={tutoTarget} darLike={darLike} />}
+{vista === "feed" && <Feed t={t} lang={lang} g={g} setSheet={setSheet} verPerfil={verPerfil} verHistoria={verHistoria} tutoTarget={tutoTarget} darLike={darLike} comentar={comentar} comentando={comentando} />}
 {vista === "dms" && <ListaDM t={t} lang={lang} g={g} setVista={setVista} escribiendo={escribiendo} />}
 {vista === "dmBeto" && <HiloDM t={t} lang={lang} g={g} msgs={g.dmBeto} quien="beto" volver={() => setVista("dms")} verPerfil={verPerfil} escribiendo={escribiendo("dmBeto")} abrirProto={abrirProto} />}
 {vista === "dmArq" && <HiloDM t={t} lang={lang} g={g} msgs={g.dmArq} quien="arq" volver={() => setVista("dms")} verPerfil={verPerfil} escribiendo={escribiendo("dmArq")} ofertas={g.ofertas} responderOferta={responderOferta} />}
 </div>
 );
 }
-function Feed({ t, lang, g, setSheet, verPerfil, verHistoria, tutoTarget, darLike }) {
+function Feed({ t, lang, g, setSheet, verPerfil, verHistoria, tutoTarget, darLike, comentar, comentando }) {
 const halo = (on) => on ? { boxShadow: "0 0 0 4px #059669, 0 0 22px 6px rgba(5,150,105,.85)", borderRadius: 10, animation: "haloP 1s infinite" } : {};
 const historias = g.modoOscuro ? [] : g.historias.filter((h) => h.expiraEn > 0 || h.tipo === "amb").slice(-6);
 const visibles = [...g.liberados].reverse();
@@ -1362,11 +1407,31 @@ return (
 <button onClick={() => verPerfil(cm.npc)} className="font-bold">{NPCS[cm.npc].handle}</button> {cm.texto}
 </p>
 ))}
+{(g.misComs?.[id] || []).map((cm, i) => (
+<p key={"mc" + i} className="text-xs" style={{ color: cm.propio ? "#111827" : "#2563eb" }}>
+{cm.propio
+? <span className="font-bold">{t.tuHandle} <span style={{ color: "#059669" }}>✓</span></span>
+: <button onClick={() => verPerfil(cm.de)} className="font-bold">{NPCS[cm.de]?.handle || cm.de}{cm.ia && <span title="respuesta en vivo" style={{ color: "#a855f7" }}> ✨</span>}</button>}
+{" "}{cm.texto}
+</p>
+))}
+{comentando === id && <p className="text-xs italic text-gray-400">● ● ● {t.escribiendoCom}</p>}
+{!g.modoOscuro && <EntradaComentario t={t} onEnviar={(v) => comentar(id, v)} bloqueado={comentando === id} />}
 </div>
 </div>
 );
 })}
 <div className="px-8 py-8 text-center text-gray-400 text-xs">⚽ · 📡</div>
+</div>
+);
+}
+function EntradaComentario({ t, onEnviar, bloqueado }) {
+const [txt, setTxt] = useState("");
+const enviar = () => { const v = txt.trim(); if (!v || bloqueado) return; setTxt(""); onEnviar(v); };
+return (
+<div className="flex gap-2 items-center pt-1">
+<input value={txt} onChange={(e) => setTxt(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") enviar(); }} placeholder={t.comentaAlgo} disabled={bloqueado} className="flex-1 text-xs py-1.5 outline-none bg-transparent" style={{ color: "#111", borderBottom: "1px solid #e5e7eb" }} />
+<button onClick={enviar} disabled={bloqueado || !txt.trim()} className="text-xs font-bold px-2 py-1" style={{ color: txt.trim() && !bloqueado ? "#2563eb" : "#d1d5db" }}>▸</button>
 </div>
 );
 }
@@ -1706,7 +1771,7 @@ const foto = arq ? "🎭" : "🧑‍💻";
 const borde = arq ? "#dc2626" : "#6d28d9";
 const btn = arq ? "#b91c1c" : "#059669";
 return (
-<div className="absolute inset-x-0 z-50 px-3" style={{ top: 8, pointerEvents: "none" }}>
+<div className="absolute inset-x-0 px-3" style={{ top: 8, zIndex: 70, pointerEvents: "none" }}>
 <div style={{ animation: "subeB .3s ease-out", pointerEvents: "auto" }}>
 <div className="flex items-start gap-2">
 <div className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden flex items-center justify-center text-xl" style={{ border: "2px solid " + borde, boxShadow: "0 4px 14px rgba(0,0,0,.4)", background: arq ? "#1c0a0a" : "#ede9fe" }}>{foto}</div>
@@ -1753,7 +1818,7 @@ if (min) return (
 <button onClick={() => setMin(false)} className="absolute z-50 rounded-full flex items-center justify-center text-2xl" style={{ left: 12, bottom: 16, width: 52, height: 52, background: "#ede9fe", border: "2px solid #6d28d9", boxShadow: "0 4px 14px rgba(0,0,0,.4)", animation: "pulso 1.4s infinite" }}>🧑‍💻</button>
 );
 return (
-<div className="absolute inset-x-0 z-50 px-3" style={{ top: 8, pointerEvents: "none" }}>
+<div className="absolute inset-x-0 px-3" style={{ top: 8, zIndex: 70, pointerEvents: "none" }}>
 <div style={{ animation: "subeB .3s ease-out", pointerEvents: "auto" }}>
 <div className="flex items-start gap-2">
 <button onClick={() => setMin(true)} className="flex-shrink-0 w-11 h-11 rounded-full overflow-hidden" style={{ border: "2px solid #6d28d9", boxShadow: "0 4px 14px rgba(0,0,0,.4)" }} aria-label="min">
