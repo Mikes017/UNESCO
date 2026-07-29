@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { pedirReaccion, puente, alertaDe, clasificar, FEEDBACK_USUARIO } from "./agentes.js";
 // Para activar el LLM (tras desplegar el proxy de la Fase 2), descomenta:
-// import { activarLLM } from "./agentes_online.js";
+import { activarLLM } from "./agentes_online.js";
 // VERIFIED v3 — Prototipo (UNESCO Youth Hackathon 2026)
 // 🖼️ IMÁGENES (GitHub Pages): agrega entradas con la URL de tu imagen libre.
 // Ej: IMG.npcs.carmen = "/img/carmen.jpg"; IMG.casos.c1 = "/img/banco.jpg";
@@ -510,7 +510,7 @@ const lang = "en"; const setLang = () => {}; // idioma fijo (versión jurado)
 // ┌─ LLM EN VIVO (Fase 2) ─────────────────────────────────────────────┐
 // │ Para encender Gemini: (1) descomenta el import de activarLLM arriba, │
 // │ (2) pon tu PROXY_URL en agentes_online.js, (3) descomenta la línea:  │
-// useEffect(() => { activarLLM(); }, []);
+useEffect(() => { activarLLM(); }, []);
 // └─────────────────────────────────────────────────────────────────────┘
 const [pantalla, setPantalla] = useState("lock");
 const [vistaInsta, setVistaInsta] = useState("feed");

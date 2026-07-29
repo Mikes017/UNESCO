@@ -17,7 +17,7 @@
 import { puente, construirPrompt, construirPromptClasificacion, validarReaccion } from "./agentes.js";
 
 // 👉 PON AQUÍ la URL de tu Worker tras `wrangler deploy`
-export const PROXY_URL = "https://verified-proxy.TU-SUBDOMINIO.workers.dev";
+export const PROXY_URL = "https://verified-proxy.miguelgrnova.workers.dev";
 
 const TIMEOUT_MS = 6000; // si Gemini tarda más, caemos a offline sin congelar el juego
 
