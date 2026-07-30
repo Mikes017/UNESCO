@@ -163,11 +163,8 @@ export default {
       .map((p) => p.text)
       .join("")
       .trim();
-    if (!txt)
-      return new Response(JSON.stringify({
-        mensaje: "…", bando: "neutral", tipo_firstdraft: null,
-        motivacion_8p: null, tecnica: "ninguna", mil: null, efecto: "neutral",
-      }), { status: 200, headers: cors });
+    if (!txt) // el modelo no devolvió nada (p. ej. bloqueo de seguridad) → al banco
+      return new Response(JSON.stringify({ error: "vacio" }), { status: 200, headers: cors });
 
     // Parseo + saneo al esquema (el candado FINAL vive igual en el juego).
     const obj = extraerJSON(txt);
@@ -184,11 +181,10 @@ export default {
     }
     const limpio = sanear(obj);
     // Moderación de SALIDA (Fase 5): si el mensaje trae algo rojo, lo neutralizamos.
-    if (salidaSospechosa(limpio.mensaje)) {
-      limpio.mensaje = "…";
-      limpio.bando = "neutral"; limpio.tipo_firstdraft = null;
-      limpio.motivacion_8p = null; limpio.tecnica = "ninguna"; limpio.efecto = "neutral";
-    }
+    // En vez de dejar al NPC mudo con "…", devolvemos algo que el juego descarta
+    // para que use su banco: texto humano, seguro y en el idioma correcto.
+    if (salidaSospechosa(limpio.mensaje))
+      return new Response(JSON.stringify({ error: "moderado" }), { status: 200, headers: cors });
     return new Response(JSON.stringify(limpio), { status: 200, headers: cors });
   },
 };

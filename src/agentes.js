@@ -397,20 +397,31 @@ async function llamarProxy(_ctx) {
 // ----------------------------------------------------------------------------
 export function construirPrompt(ctx) {
   const p = PERFILES[ctx.npc] || {};
-  const idioma = (ctx.lang === "es") ? "Responde en español mexicano coloquial." : "Respond in casual English (this is a Mexican family, but speak English for this version).";
+  const en = ctx.lang !== "es";
+  // El perfil del personaje está escrito en español: si solo pedimos inglés en
+  // una línea suelta, el modelo se va al español. Por eso la regla de idioma va
+  // en el idioma destino, en mayúsculas, y REPETIDA al final (lo último pesa más).
+  const idioma = en
+    ? 'LANGUAGE — write the "mensaje" field in ENGLISH ONLY. This is a Mexican family, so keep the warmth, the nicknames and the emojis, but say them in English ("honey", "sweetie", "kiddo" instead of "mijo"). Never write a sentence in Spanish.'
+    : 'IDIOMA — escribe el campo "mensaje" en español mexicano coloquial.';
+  const guia = en
+    ? 'CONTEXT: "historial" is the conversation so far (yours and everyone else\'s) and "caso" is the post being discussed.\n' +
+      "Reply DIRECTLY to the player's last message: pick up what they just said, don't change the subject, don't greet again and don't repeat what someone else already said. Sound like you have been in this chat for a while."
+    : "CONTEXTO: en 'historial' viene la conversación tal como va (lo tuyo y lo de los demás) y en 'caso' la publicación de la que se habla.\n" +
+      "Contesta DIRECTAMENTE al último mensaje del usuario: retoma lo que acaba de decir, sin cambiar de tema, sin saludar de nuevo y sin repetir lo que otro ya dijo en el historial. Habla como si llevaras rato en esa conversación.";
   return {
     system:
       (p.systemPrompt || "Eres un vecino en un chat.") +
-      "\n" + idioma +
-      "\n\nCONTEXTO: en 'historial' viene la conversación tal como va (lo tuyo y lo de los demás) y en 'caso' la publicación de la que se habla.\n" +
-      "Contesta DIRECTAMENTE al último mensaje del usuario: retoma lo que acaba de decir, sin cambiar de tema, sin saludar de nuevo y sin repetir lo que otro ya dijo en el historial. Habla como si llevaras rato en esa conversación.\n" +
-      "\nResponde SOLO con un JSON válido con esta forma exacta:\n" +
+      "\n\n" + idioma +
+      "\n\n" + guia +
+      "\n\nResponde SOLO con un JSON válido con esta forma exacta:\n" +
       '{ "mensaje": "<1-2 líneas>", "bando": "desinfo|etico|neutral|duda", ' +
       '"tipo_firstdraft": <uno de ' + JSON.stringify(TIPOS_FD) + " o null>, " +
       '"motivacion_8p": <una de ' + JSON.stringify(MOTIVACIONES_8P) + " o null>, " +
       '"tecnica": <una de ' + JSON.stringify(TECNICAS) + " o null>, " +
       '"mil": <1-9 o null>, "efecto": <uno de ' + JSON.stringify(EFECTOS) + "> }\n" +
-      "No agregues texto fuera del JSON. Elige etiquetas SOLO de esas listas.",
+      "No agregues texto fuera del JSON. Elige etiquetas SOLO de esas listas.\n\n" +
+      idioma,
     user: JSON.stringify({
       situacion: ctx.situacion,
       publicacion_del_usuario: ctx.textoUsuario || null,
