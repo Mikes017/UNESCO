@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { pedirReaccion, puente, alertaDe, clasificar, FEEDBACK_USUARIO, BANCO as BANCO_AGENTES } from "./agentes.js";
+import { pedirReaccion, reaccionarYClasificar, puente, alertaDe, FEEDBACK_USUARIO, BANCO as BANCO_AGENTES } from "./agentes.js";
 // Para activar el LLM (tras desplegar el proxy de la Fase 2), descomenta:
 import { activarLLM } from "./agentes_online.js";
 // VERIFIED v3 — Prototipo (UNESCO Youth Hackathon 2026)
@@ -467,6 +467,20 @@ const TUTO = [
 { id: "tipo", target: null, txt: { es: "¿Qué TIPO de engaño es? Elige 👉", en: "What TYPE of deception is it? Pick 👉" } },
 { id: "cierre", target: null, txt: { es: "¡Eso! Ya sabes. Ahora van llegando solos 💪", en: "That's it! You got it. They'll keep coming 💪" } },
 ];
+// FASE 6 · Publicaciones nuevas en cada partida. UNA sola petición al arrancar;
+// se intercalan en la cola a partir del 4º hueco, para que la variedad aparezca
+// pronto sin tocar el arco del tutorial (c1-c3), que es el que enseña el método.
+// Si la llamada falla o el modelo se sale del vocabulario, no se añade nada.
+let casosSembrados = false;
+async function sembrarCasos(lang) {
+if (casosSembrados || !puente.implCasos) return;
+casosSembrados = true; // React monta dos veces en desarrollo: una sola siembra
+try {
+const nuevos = await puente.implCasos(4, { lang });
+let pos = 4;
+for (const c of nuevos) { CASOS.splice(Math.min(pos, CASOS.length), 0, c); pos += 2; }
+} catch (e) { /* se juega con los casos escritos a mano */ }
+}
 const estadoInicial = () => ({
 tick: 0, xp: 0, infodemia: 18, cred: 100, strikes: 0, limitado: 0,
 resueltos: {}, reportes: [],
@@ -510,7 +524,7 @@ const lang = "en"; const setLang = () => {}; // idioma fijo (versión jurado)
 // ┌─ LLM EN VIVO (Fase 2) ─────────────────────────────────────────────┐
 // │ Para encender Gemini: (1) descomenta el import de activarLLM arriba, │
 // │ (2) pon tu PROXY_URL en agentes_online.js, (3) descomenta la línea:  │
-useEffect(() => { activarLLM(); }, []);
+useEffect(() => { activarLLM(); sembrarCasos(lang); }, []);
 // └─────────────────────────────────────────────────────────────────────┘
 const [pantalla, setPantalla] = useState("lock");
 const [vistaInsta, setVistaInsta] = useState("feed");
@@ -552,19 +566,23 @@ else if (efecto === "apoya" || efecto === "inmune") { if (ng.comunidad[npc] !== 
 };
 // Elegimos el NPC del propio banco: así el LLM recibe una personalidad real y,
 // si cae a offline, la situación siempre tiene una respuesta para ese personaje.
-const npcDeSituacion = (situacion) => {
-const pool = BANCO_AGENTES[situacion] || [];
+const npcDeSituaciones = (situaciones) => {
+const pool = situaciones.flatMap((s) => BANCO_AGENTES[s] || []);
 return pool.length ? pool[Math.floor(Math.random() * pool.length)].npc : null;
 };
-const reaccionAgente = async (situacion, opts = {}) => {
-try {
-const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla: (opts.semilla || "") + situacion + Date.now(), textoUsuario: opts.textoUsuario, caso: opts.caso, historial: opts.historial, lang });
-if (!reaccion) return;
-const enComentario = opts.destino?.tipo === "coment";
-setG((s) => {
-let ng = { ...s };
-if (enComentario) { // responde en el hilo del post, no en el grupo
-const casoId = opts.destino.casoId;
+// Al fusionar clasificación y respuesta en UNA petición, el personaje se elige
+// ANTES de saber la categoría: sale de quienes pueden hablar en esa parte.
+const SITUACIONES_CHAT = ["user_corrige_bien", "user_corrige_mal", "user_comparte_fake"];
+const SITUACIONES_COMENT = ["coment_en_fake", "coment_en_correccion"];
+const MAPA_COMENT = {
+sandwich: "coment_en_correccion", hechos_fuente: "coment_en_correccion", empatia: "coment_en_correccion",
+repite_mito: "coment_en_fake", cae: "coment_en_fake", ataca_persona: "coment_en_fake",
+solo_emocion: "coment_en_fake", neutral: "coment_en_fake",
+};
+// Mete la reacción donde toque (grupo o hilo del post) y aplica su efecto.
+const escribirReaccion = (ng, reaccion, fuente, destino) => {
+if (destino?.tipo === "coment") {
+const casoId = destino.casoId;
 ng.misComs = { ...ng.misComs, [casoId]: [...(ng.misComs[casoId] || []), { de: reaccion.npc, texto: reaccion.mensaje, ia: fuente === "llm" }] };
 } else { // mensaje vivo del NPC al grupo de WhatsUp
 ng.chat = [...ng.chat, { de: reaccion.npc, texto: { es: reaccion.mensaje, en: reaccion.mensaje }, propio: false, t: ng.tick, ia: fuente === "llm" }];
@@ -572,22 +590,23 @@ ng.chat = [...ng.chat, { de: reaccion.npc, texto: { es: reaccion.mensaje, en: re
 aplicarEfecto(ng, reaccion.npc, reaccion.efecto);
 // guardamos los metadatos (para Radiografía / diagnóstico futuros)
 ng.ultimaReaccion = { tipo: reaccion.tipo_firstdraft, motiv: reaccion.motivacion_8p, tec: reaccion.tecnica, mil: reaccion.mil, bando: reaccion.bando };
+};
+const reaccionAgente = async (situacion, opts = {}) => {
+try {
+const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla: (opts.semilla || "") + situacion + Date.now(), textoUsuario: opts.textoUsuario, caso: opts.caso, historial: opts.historial, lang });
+if (!reaccion) return;
+setG((s) => {
+let ng = { ...s };
+escribirReaccion(ng, reaccion, fuente, opts.destino);
 if (alerta) ng.alertaIA = alerta; // se muestra como banner temático
 return ng;
 });
 // si ya estás leyendo el grupo, el mensaje no cuenta como "no leído"
-if (!enComentario && pantalla !== "whats") setNoLeidosW((n) => n + 1);
+if (opts.destino?.tipo !== "coment" && pantalla !== "whats") setNoLeidosW((n) => n + 1);
 if (alerta) notificar("📡", alerta);
 } catch (e) { /* nunca romper el juego por una reacción */ }
 };
 // --- FASE 4: loop de texto libre → clasificación → feedback de Beto ---
-// Qué le toca contestar a la familia según lo que hiciste. Usa las mismas
-// claves del banco de agentes, así funciona igual con LLM y sin él.
-const SITUACION_LIBRE = {
-sandwich: "user_corrige_bien", hechos_fuente: "user_corrige_bien", empatia: "user_corrige_bien",
-repite_mito: "user_comparte_fake", cae: "user_comparte_fake",
-ataca_persona: "user_corrige_mal", solo_emocion: "user_corrige_mal", neutral: "user_corrige_mal",
-};
 // Beto enseña y la comunidad se mueve (candado pedagógico). Lo comparten el
 // chat del grupo y los comentarios del feed.
 const aplicarFeedbackLibre = (ng, fb, categoria) => {
@@ -601,22 +620,26 @@ const txt = (texto || "").trim();
 if (!txt || escribiendoW) return;
 // 1) el mensaje del usuario aparece en el chat
 setG((s) => ({ ...s, chat: [...s.chat, { de: "tu", texto: { es: txt, en: txt }, propio: true, t: s.tick }] }));
-// 2) clasificar (LLM si hay puente; si no, heurístico offline)
-const { categoria, alerta } = await clasificar(txt, {});
-const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
-// 3) feedback determinista de Beto + efecto en la comunidad
-setG((s) => { let ng = { ...s }; aplicarFeedbackLibre(ng, fb, categoria); if (alerta) ng.alertaIA = alerta; return ng; });
-if (alerta) notificar("📡", alerta);
-// 4) y la familia te CONTESTA a lo que escribiste, con el hilo a la vista
-const situacion = SITUACION_LIBRE[categoria] || "user_corrige_mal";
-const npc = npcDeSituacion(situacion);
 const historial = [
 ...g.chat.slice(-6).map((m) => ({ de: m.propio ? "el jugador" : (NPCS[m.de]?.nombre[lang] || m.de), dice: txtMsg(m, lang) })),
 { de: "el jugador", dice: txt },
 ];
+// 2) quién contesta se decide ANTES: su voz va en el prompt de la única llamada
+const npc = npcDeSituaciones(SITUACIONES_CHAT);
 setEscribiendoW(npc);
-try { await reaccionAgente(situacion, { npc, textoUsuario: txt, historial, semilla: "libre" }); }
-finally { setEscribiendoW(null); }
+try {
+// UNA sola petición: clasifica lo que hiciste Y te contesta en personaje
+const { categoria, reaccion, fuente, alerta } = await reaccionarYClasificar({ npc, textoUsuario: txt, historial, lang, semilla: "libre" + Date.now() });
+const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
+setG((s) => {
+let ng = { ...s };
+aplicarFeedbackLibre(ng, fb, categoria); // Beto enseña
+if (reaccion) escribirReaccion(ng, reaccion, fuente); // y la familia contesta
+if (alerta) ng.alertaIA = alerta;
+return ng;
+});
+if (alerta) notificar("📡", alerta);
+} finally { setEscribiendoW(null); }
 };
 // Comentar en un post del feed: mismo circuito pedagógico, pero el NPC te
 // contesta dentro del hilo de ese post.
@@ -627,18 +650,26 @@ const caso = CASOS.find((c) => c.id === casoId);
 setG((s) => ({ ...s, misComs: { ...s.misComs, [casoId]: [...(s.misComs[casoId] || []), { de: "tu", texto: txt, propio: true }] } }));
 setComentando(casoId);
 try {
-const { categoria, alerta } = await clasificar(txt, {});
-const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
-setG((s) => { let ng = { ...s }; aplicarFeedbackLibre(ng, fb, categoria); if (alerta) ng.alertaIA = alerta; return ng; });
-if (alerta) notificar("📡", alerta);
-const situacion = fb.ok === true ? "coment_en_correccion" : "coment_en_fake";
 // el hilo del post: los comentarios que ya estaban + los tuyos
 const historial = [
 ...(caso ? comentariosDe(caso, g, lang).map((cm) => ({ de: NPCS[cm.npc]?.nombre[lang] || cm.npc, dice: cm.texto })) : []),
 ...(g.misComs[casoId] || []).map((cm) => ({ de: cm.propio ? "el jugador" : (NPCS[cm.de]?.nombre[lang] || cm.de), dice: cm.texto })),
 { de: "el jugador", dice: txt },
 ];
-await reaccionAgente(situacion, { npc: npcDeSituacion(situacion), textoUsuario: txt, caso: caso ? { titular: caso.titular[lang], fake: caso.fake } : null, historial, destino: { tipo: "coment", casoId }, semilla: casoId });
+// una sola petición, igual que en el chat, pero contesta en el hilo del post
+const { categoria, reaccion, fuente, alerta } = await reaccionarYClasificar({
+npc: npcDeSituaciones(SITUACIONES_COMENT), textoUsuario: txt, historial, lang, semilla: casoId + Date.now(),
+caso: caso ? { titular: caso.titular[lang], fake: caso.fake } : null, mapa: MAPA_COMENT,
+});
+const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
+setG((s) => {
+let ng = { ...s };
+aplicarFeedbackLibre(ng, fb, categoria);
+if (reaccion) escribirReaccion(ng, reaccion, fuente, { tipo: "coment", casoId });
+if (alerta) ng.alertaIA = alerta;
+return ng;
+});
+if (alerta) notificar("📡", alerta);
 } finally { setComentando(null); }
 };
 const encolar = (ng, canal, m, delay, noti) => { ng.cola = [...ng.cola, { en: delay, canal, m, noti }]; };

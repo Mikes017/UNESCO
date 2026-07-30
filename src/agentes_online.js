@@ -14,7 +14,7 @@
 //    if (alerta) mostrarAlerta(alerta);  // "sin señal / se agotaron créditos"
 // ============================================================================
 
-import { puente, construirPrompt, construirPromptClasificacion, validarReaccion } from "./agentes.js";
+import { puente, construirPrompt, construirPromptClasificacion, construirPromptCasos, validarCasoGenerado, validarReaccion } from "./agentes.js";
 
 // 👉 PON AQUÍ la URL de tu Worker tras `wrangler deploy`
 export const PROXY_URL = "https://verified-proxy.miguelgrnova.workers.dev";
@@ -108,6 +108,21 @@ async function clasificarProxyReal(texto, ctx) {
   return pedirAlProxy({ system, user, textoUsuario: texto, modo: "clasificar" });
 }
 
+// Fase 6: clasificación + reacción en UNA sola petición (la mitad de cuota).
+async function combinadoProxyReal(ctx) {
+  const { system, user } = construirPrompt(ctx, { conCategoria: true });
+  return pedirAlProxy({ system, user, textoUsuario: ctx.textoUsuario || null, modo: "combinado" });
+}
+
+// Fase 6: una petición trae varias publicaciones nuevas para esta partida.
+// Devuelve [] ante cualquier problema: el juego sigue con sus casos de siempre.
+async function generarCasosProxy(n = 4, ctx = {}) {
+  const { system, user } = construirPromptCasos(n, ctx);
+  const cruda = await pedirAlProxy({ system, user, modo: "casos" });
+  const lista = Array.isArray(cruda?.casos) ? cruda.casos : [];
+  return lista.map((c, i) => validarCasoGenerado(c, i)).filter(Boolean);
+}
+
 // Enciende el puente y engancha la implementación real.
 // (agentes.js llama internamente a puente.impl si existe; ver nota abajo.)
 export function activarLLM() {
@@ -115,6 +130,8 @@ export function activarLLM() {
   puente.motivo = null;
   puente.impl = llamarProxyReal;          // reacciones de NPC
   puente.implClasificar = clasificarProxyReal; // clasificación de texto libre
+  puente.implCombinado = combinadoProxyReal;   // las dos de golpe (Fase 6)
+  puente.implCasos = generarCasosProxy;        // publicaciones nuevas (Fase 6)
 }
 
 export function desactivarLLM(motivo = "manual") {

@@ -127,7 +127,8 @@ export default {
       contents: [{ role: "user", parts: [{ text: user || "" }] }],
       generationConfig: {
         temperature: 0.9,
-        maxOutputTokens: 1024,
+        // generar varias publicaciones necesita mucho más espacio que una réplica
+        maxOutputTokens: modo === "casos" ? 4096 : 1024,
         responseMimeType: "application/json", // Gemini devuelve JSON puro
       },
       safetySettings: [ // filtros de seguridad (app juvenil)
@@ -179,7 +180,19 @@ export default {
       const cat = ESTRATEGIAS_USUARIO.includes(obj?.categoria) ? obj.categoria : "neutral";
       return new Response(JSON.stringify({ categoria: cat }), { status: 200, headers: cors });
     }
+    // Modo casos (Fase 6): publicaciones nuevas. El juego valida cada una contra
+    // su vocabulario, así que aquí solo acotamos el tamaño y filtramos la salida.
+    if (modo === "casos") {
+      const lista = (Array.isArray(obj?.casos) ? obj.casos : []).slice(0, 8);
+      const limpios = lista.filter((c) =>
+        !salidaSospechosa(c?.titular_es) && !salidaSospechosa(c?.titular_en) &&
+        !salidaSospechosa(c?.beto_es) && !salidaSospechosa(c?.beto_en));
+      return new Response(JSON.stringify({ casos: limpios }), { status: 200, headers: cors });
+    }
     const limpio = sanear(obj);
+    // Modo combinado (Fase 6): la misma respuesta trae la categoría del jugador.
+    if (modo === "combinado")
+      limpio.categoria = ESTRATEGIAS_USUARIO.includes(obj?.categoria) ? obj.categoria : "neutral";
     // Moderación de SALIDA (Fase 5): si el mensaje trae algo rojo, lo neutralizamos.
     // En vez de dejar al NPC mudo con "…", devolvemos algo que el juego descarta
     // para que use su banco: texto humano, seguro y en el idioma correcto.

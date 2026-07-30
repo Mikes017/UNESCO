@@ -328,7 +328,7 @@ function resolverIdioma(entry, lang = "en") {
 
 // Estado del "puente" con el LLM. El juego lo pone en false cuando el proxy
 // avisa "ya se acabaron los tokens" o cuando hay timeouts/red caída.
-export const puente = { online: false, motivo: null, impl: null };
+export const puente = { online: false, motivo: null, impl: null, implClasificar: null, implCombinado: null };
 
 /**
  * @param {Object} ctx        Igual que reaccionOffline, + datos del caso.
@@ -395,9 +395,26 @@ async function llamarProxy(_ctx) {
 //  Junta el perfil del NPC + el contexto + la EXIGENCIA de responder en el
 //  esquema. Devolver esto al proxy garantiza etiquetas del vocabulario.
 // ----------------------------------------------------------------------------
-export function construirPrompt(ctx) {
+export function construirPrompt(ctx, opts = {}) {
   const p = PERFILES[ctx.npc] || {};
   const en = ctx.lang !== "es";
+  // Modo combinado: además de reaccionar, el modelo clasifica lo que hizo el
+  // jugador. Así una sola petición hace el trabajo de dos (ver sección 9).
+  const pideCat = !!opts.conCategoria;
+  const explicaCat = !pideCat ? "" : (en
+    ? '\n\nALSO classify what the PLAYER did in the "categoria" field, judging ONLY their last message: ' +
+      'sandwich = gives the fact, explains the trick and reinforces it, without repeating the myth or attacking. ' +
+      "hechos_fuente = brings a checkable fact/source calmly. empatia = replies with empathy without attacking. " +
+      "repite_mito = repeats or amplifies the myth. ataca_persona = insults or mocks whoever believed it. " +
+      "solo_emocion = pure feeling with no facts. cae = sides with the fake. neutral = off-topic or empty. " +
+      "Classify honestly: it is what the game uses to teach."
+    : '\n\nADEMÁS clasifica lo que hizo EL JUGADOR en el campo "categoria", juzgando SOLO su último mensaje: ' +
+      "sandwich = da el hecho, explica la trampa y refuerza, sin repetir el mito ni atacar. " +
+      "hechos_fuente = aporta un dato/fuente verificable con calma. empatia = responde con empatía sin atacar. " +
+      "repite_mito = repite o amplifica el mito. ataca_persona = insulta o se burla del que creyó. " +
+      "solo_emocion = puro sentimiento sin datos. cae = le da la razón al fake. neutral = fuera de tema o vacío. " +
+      "Clasifica con honestidad: es lo que el juego usa para enseñar.");
+  const campoCat = pideCat ? '"categoria": <una de ' + JSON.stringify(ESTRATEGIAS_USUARIO) + ">, " : "";
   // El perfil del personaje está escrito en español: si solo pedimos inglés en
   // una línea suelta, el modelo se va al español. Por eso la regla de idioma va
   // en el idioma destino, en mayúsculas, y REPETIDA al final (lo último pesa más).
@@ -413,9 +430,9 @@ export function construirPrompt(ctx) {
     system:
       (p.systemPrompt || "Eres un vecino en un chat.") +
       "\n\n" + idioma +
-      "\n\n" + guia +
+      "\n\n" + guia + explicaCat +
       "\n\nResponde SOLO con un JSON válido con esta forma exacta:\n" +
-      '{ "mensaje": "<1-2 líneas>", "bando": "desinfo|etico|neutral|duda", ' +
+      "{ " + campoCat + '"mensaje": "<1-2 líneas>", "bando": "desinfo|etico|neutral|duda", ' +
       '"tipo_firstdraft": <uno de ' + JSON.stringify(TIPOS_FD) + " o null>, " +
       '"motivacion_8p": <una de ' + JSON.stringify(MOTIVACIONES_8P) + " o null>, " +
       '"tecnica": <una de ' + JSON.stringify(TECNICAS) + " o null>, " +
@@ -467,12 +484,20 @@ export function clasificarOffline(texto) {
   if (!t) return "neutral";
   const tiene = (arr) => arr.some((w) => t.includes(w));
 
-  const insulto = tiene(["tonto", "tont", "inocent", "pendej", "estúpid", "estupid", "idiot", "🤡", "menso", "baboso", "ridícul", "ridicul", "burla", "se lo tragaron", "qué tontos"]);
-  const fuente = tiene(["fuente", "oficial", "verific", "checa", "chequen", "según", "comprob", "evidencia", "el dato", "un dato", "enlace", "link", "busca", "búsqueda inversa", "protección civil", "no hay prueba"]);
-  const explica = tiene(["porque", "en realidad", "lo que pasa", "la verdad es", "fíjate", "resulta que", "en realidad no", "de hecho"]);
-  const empatia = tiene(["entiendo", "sé que", "se que", "con calma", "tranquil", "no te preocupes", "a mí también", "a mi tambien", "sin miedo"]);
-  const daRazon = tiene(["es cierto", "sí pasa", "si pasa", "tiene razón", "compárt", "compart", "reenví", "reenvi", "yo también lo creo", "ha de ser cierto", "hay que avisar", "mejor prevenir"]);
-  const grita = /[A-ZÁÉÍÓÚ]{4,}/.test(raw) && tiene(["falso", "mentira", "no crean", "es falso", "no lo crean"]);
+  // Las listas llevan español e inglés: la versión del jurado corre en inglés,
+  // y este heurístico es justo el que actúa cuando el LLM no está disponible.
+  const insulto = tiene(["tonto", "tont", "inocent", "pendej", "estúpid", "estupid", "idiot", "🤡", "menso", "baboso", "ridícul", "ridicul", "burla", "se lo tragaron", "qué tontos",
+    "stupid", "dumb", "moron", "clown", "gullible", "so naive", "ridiculous", "making fun"]);
+  const fuente = tiene(["fuente", "oficial", "verific", "checa", "chequen", "según", "comprob", "evidencia", "el dato", "un dato", "enlace", "link", "busca", "búsqueda inversa", "protección civil", "no hay prueba",
+    "source", "official", "verify", "verified", "check", "checked", "according to", "evidence", "proof", "denied", "debunk", "fact-check", "no proof", "reverse search"]);
+  const explica = tiene(["porque", "en realidad", "lo que pasa", "la verdad es", "fíjate", "resulta que", "en realidad no", "de hecho",
+    "because", "actually", "the truth is", "in fact", "turns out", "what happened is", "here is why", "here's why"]);
+  const empatia = tiene(["entiendo", "sé que", "se que", "con calma", "tranquil", "no te preocupes", "a mí también", "a mi tambien", "sin miedo",
+    "i understand", "i get why", "i get it", "i know it", "don't worry", "dont worry", "me too", "scared me too", "calm", "it's okay", "its okay"]);
+  const daRazon = tiene(["es cierto", "sí pasa", "si pasa", "tiene razón", "compárt", "compart", "reenví", "reenvi", "yo también lo creo", "ha de ser cierto", "hay que avisar", "mejor prevenir",
+    "it's true", "its true", "it is true", "share it", "forward it", "better safe", "take your money out", "everyone should", "you're right", "youre right"]);
+  const grita = /[A-ZÁÉÍÓÚ]{4,}/.test(raw) && tiene(["falso", "mentira", "no crean", "es falso", "no lo crean",
+    "false", "fake", "a lie", "don't believe", "dont believe"]);
   const soloEmocion = /[!¡]{2,}/.test(raw) && !fuente && !explica;
 
   if (insulto) return "ataca_persona";
@@ -531,6 +556,140 @@ export async function clasificar(texto, opts = {}) {
   }
   return { categoria: clasificarOffline(texto), fuente: "offline" };
 }
+
+// ============================================================================
+//  9) FASE 6 · UNA SOLA LLAMADA: clasificar al jugador + contestarle
+// ----------------------------------------------------------------------------
+//  Cada mensaje del jugador costaba DOS peticiones (clasificar, y luego pedir
+//  la reacción). Con el tier gratuito eso es la mitad del presupuesto. Aquí se
+//  juntan: el personaje se elige ANTES, su voz va en el system prompt, y el
+//  modelo devuelve la categoría y la respuesta de golpe.
+//  Los dos candados siguen intactos: validarClasificacion + validarReaccion.
+// ============================================================================
+
+// Qué situación del banco le toca a la familia según lo que hizo el jugador.
+export const SITUACION_POR_CATEGORIA = {
+  sandwich: "user_corrige_bien", hechos_fuente: "user_corrige_bien", empatia: "user_corrige_bien",
+  repite_mito: "user_comparte_fake", cae: "user_comparte_fake",
+  ataca_persona: "user_corrige_mal", solo_emocion: "user_corrige_mal", neutral: "user_corrige_mal",
+};
+
+/**
+ * Clasifica al jugador y devuelve la reacción del NPC en UNA sola petición.
+ * @param {Object} ctx  Igual que pedirReaccion + textoUsuario obligatorio.
+ * @param {Object} [ctx.mapa]  categoria -> situacion (para el camino offline).
+ * @returns {Promise<{categoria, reaccion, fuente, alerta?}>}
+ */
+export async function reaccionarYClasificar(ctx = {}, opts = {}) {
+  const preferir = opts.preferirLLM !== false;
+  const mapa = ctx.mapa || SITUACION_POR_CATEGORIA;
+  const texto = ctx.textoUsuario || "";
+  // Camino offline: heurístico + banco. Cuesta CERO peticiones.
+  const offline = (alerta) => {
+    const categoria = clasificarOffline(texto);
+    const situacion = mapa[categoria] || ctx.situacion;
+    // Sin forzar el npc: el banco elige a quien tenga línea escrita para esa
+    // situación (si lo forzáramos, podría quedarse sin ninguna y no responder).
+    const reaccion = reaccionOffline({ situacion, semilla: ctx.semilla, lang: ctx.lang });
+    return { categoria, reaccion, fuente: "offline", ...(alerta ? { alerta } : {}) };
+  };
+
+  if (preferir && puente.online && puente.implCombinado) {
+    try {
+      const cruda = await puente.implCombinado(ctx);
+      const categoria = validarClasificacion(cruda && cruda.categoria);
+      const reaccion = validarReaccion(cruda);
+      if (reaccion && ctx.npc) reaccion.npc = ctx.npc; // el proxy no devuelve el personaje
+      // Si el modelo se salió del vocabulario en cualquiera de las dos, al banco.
+      if (categoria && reaccion) return { categoria, reaccion, fuente: "llm" };
+    } catch (e) {
+      puente.online = false;
+      puente.motivo = e && e.motivo ? e.motivo : "red";
+      return offline(alertaDe(puente.motivo));
+    }
+  }
+  return offline();
+}
+
+// ============================================================================
+//  10) FASE 6 · PUBLICACIONES NUEVAS EN CADA PARTIDA
+// ----------------------------------------------------------------------------
+//  Una sola petición al arrancar trae varias publicaciones nuevas, etiquetadas
+//  con el MISMO vocabulario (First Draft + 8P). Si la llamada falla o el modelo
+//  se sale del vocabulario, simplemente no se añade nada y se juega con los
+//  casos escritos a mano. Nunca puede romper la partida.
+// ============================================================================
+export const CUENTAS_FALSAS = ["n0ticias", "boletos", "enfermera", "ovni", "veci", "troll", "fitlife", "futgossip"];
+export const CUENTAS_REALES = ["clima", "medio", "ong"];
+export const TACTICAS_VALIDAS = ["urgencia", "miedo", "fraude", "contexto", "autoridad", "influencer", "conspiracion", "ia_imagen", "satira", "acceso", "odio"];
+
+export function construirPromptCasos(n = 4, ctx = {}) {
+  const en = ctx.lang !== "es";
+  return {
+    system:
+      "Diseñas casos para VERIFIED, un juego de alfabetización mediática (UNESCO) para adolescentes, ambientado en un barrio mexicano durante un mundial de fútbol.\n" +
+      "Cada caso es UNA publicación de redes sociales que el jugador deberá juzgar. Mézclalos: la mayoría desinformación, pero incluye 1 verdadera y aburrida (para que no baste con desconfiar de todo).\n" +
+      "Reglas: nada de política real, ni personas reales, ni marcas reales, ni enfermedades graves tratadas a la ligera. Nada de links. Tono creíble, cotidiano, latinoamericano.\n" +
+      "El campo 'beto' es la pista del primo experto: explica en 1 línea POR QUÉ engaña (o por qué es limpia), señalando la pista concreta.\n\n" +
+      "Responde SOLO con un JSON válido: { \"casos\": [ {...} x" + n + " ] }, cada uno con esta forma exacta:\n" +
+      '{ "titular_es": "<texto del post, máx 140>", "titular_en": "<same in English, max 140>", ' +
+      '"fake": true|false, ' +
+      '"tipos": <array de 1-2 de ' + JSON.stringify(TIPOS_FD) + ", [] si no es fake>, " +
+      '"motiv": <una de ' + JSON.stringify(MOTIVACIONES_8P) + ", null si no es fake>, " +
+      '"tactica": <una de ' + JSON.stringify(TACTICAS_VALIDAS) + ">, " +
+      '"emoji": "<1 emoji que ilustre el tema>", ' +
+      '"beto_es": "<pista, máx 120>", "beto_en": "<hint, max 120>" }\n' +
+      "No repitas temas entre casos. No agregues texto fuera del JSON. Usa etiquetas SOLO de esas listas.",
+    user: JSON.stringify({
+      cuantos: n,
+      idioma_principal: en ? "en" : "es",
+      evitar_temas: ctx.evitar || [],
+    }),
+  };
+}
+
+// Convierte un caso crudo del modelo al formato del juego. Devuelve null si se
+// salió del vocabulario: preferimos un caso menos a un caso inconsistente.
+export function validarCasoGenerado(c, i = 0) {
+  if (!c || typeof c.titular_es !== "string" || typeof c.titular_en !== "string") return null;
+  const es = c.titular_es.trim().slice(0, 180);
+  const en = c.titular_en.trim().slice(0, 180);
+  if (!es || !en) return null;
+  if (/https?:\/\//i.test(es + en)) return null; // sin links salientes
+  const fake = c.fake === true;
+  const tipos = Array.isArray(c.tipos) ? c.tipos.filter((x) => TIPOS_FD.includes(x)).slice(0, 2) : [];
+  if (fake && !tipos.length) return null;        // un fake sin diagnóstico no enseña
+  const motiv = MOTIVACIONES_8P.includes(c.motiv) ? c.motiv : null;
+  if (fake && !motiv) return null;
+  const tactica = TACTICAS_VALIDAS.includes(c.tactica) ? c.tactica : null;
+  if (fake && !tactica) return null;
+  const beS = typeof c.beto_es === "string" ? c.beto_es.trim().slice(0, 160) : "";
+  const beE = typeof c.beto_en === "string" ? c.beto_en.trim().slice(0, 160) : "";
+  if (!beS || !beE) return null;
+  const cuentas = fake ? CUENTAS_FALSAS : CUENTAS_REALES;
+  const emoji = typeof c.emoji === "string" && c.emoji.trim() ? c.emoji.trim().slice(0, 4) : (fake ? "📣" : "📰");
+  return {
+    id: "gen" + (i + 1),
+    generado: true,
+    fake,
+    ...(fake ? { tacticaId: tactica, tipos, motiv } : {}),
+    autorId: cuentas[hash("autor" + es + i) % cuentas.length],
+    img: emoji,
+    grad: GRADIENTES[hash("grad" + es + i) % GRADIENTES.length],
+    titular: { es, en },
+    imagenRes: { mal: fake, txt: fake
+      ? { es: "Búsqueda inversa: la imagen ya circulaba antes, en otro contexto.", en: "Reverse search: the image was already circulating before, in another context." }
+      : { es: "Imagen original, sin coincidencias previas.", en: "Original image, no earlier matches." } },
+    iaRes: { mal: false, txt: { es: "Sin señales claras de IA.", en: "No clear AI signals." } },
+    betoTip: { es: beS, en: beE },
+  };
+}
+
+const GRADIENTES = [
+  "linear-gradient(135deg,#111827,#7f1d1d)", "linear-gradient(135deg,#065f46,#111827)",
+  "linear-gradient(135deg,#0c4a6e,#1e293b)", "linear-gradient(135deg,#4c1d95,#1e1b4b)",
+  "linear-gradient(135deg,#7c2d12,#1c1917)", "linear-gradient(135deg,#831843,#111827)",
+];
 
 // Prompt para que el LLM clasifique (Fase 2). Devuelve SOLO la categoría.
 export function construirPromptClasificacion(texto, ctx = {}) {
