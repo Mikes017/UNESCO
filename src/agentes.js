@@ -110,6 +110,61 @@ export function validarReaccion(r) {
 
 
 // ----------------------------------------------------------------------------
+//  2 bis) CANDADO DE IDIOMA
+//  El prompt pide el idioma en mayúsculas y repetido, pero un modelo pequeño
+//  se despista de vez en cuando: los perfiles de los personajes están en
+//  español y el esquema JSON también, así que en la versión en inglés el
+//  español tira fuerte. Una sola frase en el idioma equivocado rompe la
+//  ilusión de estar en el chat de tu familia.
+//
+//  Aquí NO traducimos: detectamos y descartamos. Lo descartado cae al banco
+//  offline, que está escrito a mano en los dos idiomas — humano y con el mismo
+//  tono coloquial. Vale más una línea del banco que una línea en otro idioma.
+//
+//  La detección es a propósito CONSERVADORA: pide al menos dos marcas claras
+//  del idioma contrario y que le ganen a las del idioma pedido. Así un "😭😭",
+//  un "ok mijo" o un nombre propio nunca se descartan por error.
+// ----------------------------------------------------------------------------
+
+// Palabras frecuentes que solo existen (o solo pesan) en uno de los dos idiomas.
+// Fuera quedan las ambiguas entre español e inglés: "no", "me", "a", "son", "he".
+const MARCAS_ES = ["que", "qué", "de", "la", "el", "los", "las", "un", "una", "por", "para", "con",
+  "esto", "eso", "esta", "está", "están", "pero", "muy", "más", "ya", "aquí", "ahí", "mira", "oye",
+  "gracias", "cómo", "cuando", "cuándo", "porque", "tú", "te", "se", "lo", "le", "les", "nos", "hay",
+  "mijo", "mija", "primo", "prima", "vecina", "vecino", "sí", "todos", "también", "nada", "bien",
+  "está", "soy", "eres", "somos", "tiene", "tienen", "dice", "dicen", "vamos", "hijo", "familia"];
+const MARCAS_EN = ["the", "and", "you", "your", "that", "this", "is", "are", "was", "were", "it",
+  "im", "dont", "doesnt", "cant", "what", "but", "with", "for", "my", "we", "they", "just", "know",
+  "really", "thanks", "honey", "sweetie", "kiddo", "please", "look", "hey", "yeah", "about", "there",
+  "here", "very", "everyone", "something", "because", "should", "would", "could", "did", "does"];
+
+// Cuenta cuántas marcas de cada lista aparecen como PALABRA COMPLETA.
+function marcasDe(palabras, lista) {
+  let n = 0;
+  for (const p of palabras) if (lista.includes(p)) n++;
+  return n;
+}
+
+/**
+ * ¿El texto está claramente en un idioma distinto al pedido?
+ * @param {string} texto  El mensaje generado por el LLM.
+ * @param {string} lang   Idioma pedido ("es" | "en"). Por defecto "en".
+ * @returns {boolean}     true SOLO si hay evidencia clara de lo contrario.
+ */
+export function idiomaEquivocado(texto, lang = "en") {
+  const s = String(texto || "");
+  if (!s.trim()) return false;
+  // Apóstrofos fuera ("don't" → "dont") para que cuenten como una palabra.
+  const palabras = s.toLowerCase().replace(/['’]/g, "").split(/[^a-záéíóúüñ]+/i).filter(Boolean);
+  if (palabras.length < 3) return false; // demasiado corto para juzgarlo
+
+  const es = marcasDe(palabras, MARCAS_ES) + (/[áéíóúñ¿¡]/i.test(s) ? 1 : 0);
+  const en = marcasDe(palabras, MARCAS_EN);
+  return lang === "es" ? en >= 2 && en > es : es >= 2 && es > en;
+}
+
+
+// ----------------------------------------------------------------------------
 //  3) PERFILES DE PERSONAJE (agentes)
 //  · voz: guía el TONO de las respuestas offline.
 //  · credulidad (0–1): qué tan fácil cae ante un fake (lo usa el motor).
@@ -349,7 +404,9 @@ export async function pedirReaccion(ctx = {}, opts = {}) {
       // El proxy no devuelve el personaje: le pusimos SU voz al prompt, así que
       // la respuesta es suya. Sin esto el juego lo mostraría como "desconocido".
       if (val && ctx.npc) val.npc = ctx.npc;
-      if (val) return { reaccion: val, fuente: "llm" };
+      // Candado de idioma: si contestó en el otro idioma, esta respuesta no
+      // sirve aunque las etiquetas estén bien. Al banco, que sí está traducido.
+      if (val && !idiomaEquivocado(val.mensaje, ctx.lang)) return { reaccion: val, fuente: "llm" };
       // si el LLM devolvió etiquetas fuera de vocabulario, caemos al banco
     } catch (e) {
       // red caída / tokens agotados / timeout → apagamos el puente y avisamos
@@ -420,7 +477,7 @@ export function construirPrompt(ctx, opts = {}) {
   // en el idioma destino, en mayúsculas, y REPETIDA al final (lo último pesa más).
   const idioma = en
     ? 'LANGUAGE — write the "mensaje" field in ENGLISH ONLY. This is a Mexican family, so keep the warmth, the nicknames and the emojis, but say them in English ("honey", "sweetie", "kiddo" instead of "mijo"). Never write a sentence in Spanish.'
-    : 'IDIOMA — escribe el campo "mensaje" en español mexicano coloquial.';
+    : 'IDIOMA — escribe el campo "mensaje" SOLO en ESPAÑOL mexicano coloquial, como se habla en el barrio: apodos ("mijo", "primo", "vecina"), diminutivos y emojis. Nunca escribas una frase en inglés.';
   const guia = en
     ? 'CONTEXT: "historial" is the conversation so far (yours and everyone else\'s) and "caso" is the post being discussed.\n' +
       "Reply DIRECTLY to the player's last message: pick up what they just said, don't change the subject, don't greet again and don't repeat what someone else already said. Sound like you have been in this chat for a while."
@@ -601,7 +658,14 @@ export async function reaccionarYClasificar(ctx = {}, opts = {}) {
       const reaccion = validarReaccion(cruda);
       if (reaccion && ctx.npc) reaccion.npc = ctx.npc; // el proxy no devuelve el personaje
       // Si el modelo se salió del vocabulario en cualquiera de las dos, al banco.
-      if (categoria && reaccion) return { categoria, reaccion, fuente: "llm" };
+      if (categoria && reaccion) {
+        if (!idiomaEquivocado(reaccion.mensaje, ctx.lang)) return { categoria, reaccion, fuente: "llm" };
+        // Clasificó bien pero contestó en el idioma equivocado: la categoría es
+        // una etiqueta (no tiene idioma) así que se queda, y la voz la pone el
+        // banco. El jugador sigue recibiendo su lección, sin frases sueltas.
+        const deBanco = reaccionOffline({ situacion: mapa[categoria] || ctx.situacion, semilla: ctx.semilla, lang: ctx.lang });
+        if (deBanco) return { categoria, reaccion: deBanco, fuente: "offline" };
+      }
     } catch (e) {
       puente.online = false;
       puente.motivo = e && e.motivo ? e.motivo : "red";
@@ -936,9 +1000,11 @@ export function validarCasoGenerado(c, i = 0) {
 // ============================================================================
 export function construirPromptCritica(ctx = {}) {
   const en = ctx.lang !== "es";
+  // Igual que en construirPrompt: el esquema JSON de abajo está escrito en
+  // español, así que la regla de idioma va en el idioma destino y REPETIDA.
   const idioma = en
-    ? "LANGUAGE — write every field in ENGLISH, casual and warm, like an older cousin."
-    : "IDIOMA — escribe todos los campos en español mexicano coloquial, como un primo mayor.";
+    ? "LANGUAGE — write every field in ENGLISH ONLY, casual and warm, like an older cousin. Never write a sentence in Spanish."
+    : "IDIOMA — escribe todos los campos SOLO en ESPAÑOL mexicano coloquial, como un primo mayor. Nunca escribas una frase en inglés.";
   const base = en
     ? "You are Beto, the player's cousin: you have been hunting fake news since 2019 and you teach without lecturing. One short line per field.\n" +
       "The player built a correction out of blocks, in the order shown in \"orden\". The verdict in \"veredicto\" is ALREADY decided by the game: do not argue with it or change it — explain it.\n" +
@@ -967,11 +1033,12 @@ export function construirPromptCritica(ctx = {}) {
 
 // Deja pasar solo líneas cortas y sin links. Si no queda nada útil, null: el
 // feedback determinista de Beto ya se mostró y basta.
-export function validarCritica(c) {
+export function validarCritica(c, lang = "en") {
   const linea = (v) => {
     if (typeof v !== "string") return null;
     const s = v.trim().slice(0, 220);
-    return !s || /https?:\/\//i.test(s) ? null : s;
+    if (!s || /https?:\/\//i.test(s)) return null;
+    return idiomaEquivocado(s, lang) ? null : s; // línea en otro idioma: fuera
   };
   const acierto = linea(c?.acierto), fallo = linea(c?.fallo), mejora = linea(c?.mejora);
   if (!acierto && !fallo && !mejora) return null;

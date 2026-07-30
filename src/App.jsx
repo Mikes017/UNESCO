@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { pedirReaccion, reaccionarYClasificar, puente, alertaDe, FEEDBACK_USUARIO, BANCO as BANCO_AGENTES } from "./agentes.js";
+import { pedirReaccion, reaccionarYClasificar, reaccionOffline, puente, alertaDe, FEEDBACK_USUARIO, SITUACION_POR_CATEGORIA, BANCO as BANCO_AGENTES } from "./agentes.js";
 // Para activar el LLM (tras desplegar el proxy de la Fase 2), descomenta:
 import { activarLLM } from "./agentes_online.js";
 // VERIFIED v3 — Prototipo (UNESCO Youth Hackathon 2026)
@@ -746,7 +746,11 @@ swTitulo: "🥪 Build the truth sandwich (in order)", swHecho: "FACT", swMito: "
 };
 const fmt = (n) => (n >= 1e6 ? (n / 1e6).toFixed(1) + " M" : n >= 1e3 ? (n / 1e3).toFixed(1) + " k" : Math.floor(n).toString());
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const txtMsg = (m, L) => (m.clave ? T[L][m.clave] : m.texto[L]);
+// Todo texto que se muestra viaja bilingüe: o una clave de T, o {es,en}. txtBi
+// tolera además un string suelto, para que un texto sin traducir nunca deje un
+// hueco en blanco en pantalla.
+const txtBi = (v, L) => (typeof v === "string" ? v : (v?.[L] ?? v?.es ?? v?.en ?? ""));
+const txtMsg = (m, L) => (m.clave ? T[L][m.clave] : txtBi(m.texto, L));
 const hash = (s, i) => { let h = i * 7 + 3; for (let c of s) h = (h * 31 + c.charCodeAt(0)) % 9973; return h; };
 const hora = (tick) => { const m = 37 + Math.floor(tick / 6); return (21 + Math.floor(m / 60)) % 24 + ":" + String(m % 60).padStart(2, "0"); };
 const nivelDe = (xp) => { let n = 1; RANGOS.forEach((r, i) => { if (xp >= r.xp) n = i + 1; }); return n; };
@@ -834,8 +838,15 @@ return "pirrica";
 }
 return "neutral";
 };
+// El juego se juega en español o en inglés. Arranca en el idioma del navegador
+// (un teléfono en español abre en español) y el jugador puede cambiarlo con el
+// interruptor de la pantalla de bloqueo y del escritorio.
+const idiomaInicial = () => {
+const nav = typeof navigator !== "undefined" ? (navigator.language || "") : "";
+return /^es/i.test(nav) ? "es" : "en";
+};
 export default function Verified() {
-const lang = "en"; const setLang = () => {}; // idioma fijo (versión jurado)
+const [lang, setLang] = useState(idiomaInicial);
 // ┌─ LLM EN VIVO (Fase 2) ─────────────────────────────────────────────┐
 // │ Para encender Gemini: (1) descomenta el import de activarLLM arriba, │
 // │ (2) pon tu PROXY_URL en agentes_online.js, (3) descomenta la línea:  │
@@ -894,13 +905,33 @@ sandwich: "coment_en_correccion", hechos_fuente: "coment_en_correccion", empatia
 repite_mito: "coment_en_fake", cae: "coment_en_fake", ataca_persona: "coment_en_fake",
 solo_emocion: "coment_en_fake", neutral: "coment_en_fake",
 };
+// El LLM contesta en UN idioma: el de la partida. Si lo guardáramos tal cual en
+// los dos huecos, cambiar de idioma a media partida dejaría el chat con frases
+// en el idioma viejo — justo la mezcla que rompe la ilusión. Así que al lado de
+// la línea viva guardamos su equivalente del banco offline, escrito a mano en
+// los dos idiomas. NO se traduce nada automáticamente: se sustituye por una
+// línea humana del mismo personaje y la misma situación. Y como el banco es
+// determinista, en el camino offline las dos caras son literalmente la misma
+// frase traducida.
+const bilingue = (mensaje, ctx = {}) => {
+const otro = lang === "es" ? "en" : "es";
+if (!ctx.situacion) return { es: mensaje, en: mensaje };
+// Primero buscamos línea DE ESE personaje; si esa situación no tiene ninguna
+// suya, vale cualquiera de la familia antes que dejar la frase en otro idioma.
+const respaldo = reaccionOffline({ situacion: ctx.situacion, npc: ctx.npc, semilla: ctx.semilla, lang: otro })
+|| reaccionOffline({ situacion: ctx.situacion, semilla: ctx.semilla, lang: otro });
+return { [lang]: mensaje, [otro]: respaldo?.mensaje || mensaje };
+};
 // Mete la reacción donde toque (grupo o hilo del post) y aplica su efecto.
-const escribirReaccion = (ng, reaccion, fuente, destino) => {
+// `ctx` ({situacion, semilla, npc}) es lo que necesita bilingue() para hallar el
+// respaldo en el otro idioma; sin él la línea se guarda igual en ambos.
+const escribirReaccion = (ng, reaccion, fuente, destino, ctx) => {
+const texto = bilingue(reaccion.mensaje, { ...ctx, npc: reaccion.npc });
 if (destino?.tipo === "coment") {
 const casoId = destino.casoId;
-ng.misComs = { ...ng.misComs, [casoId]: [...(ng.misComs[casoId] || []), { de: reaccion.npc, texto: reaccion.mensaje, ia: fuente === "llm" }] };
+ng.misComs = { ...ng.misComs, [casoId]: [...(ng.misComs[casoId] || []), { de: reaccion.npc, texto, ia: fuente === "llm" }] };
 } else { // mensaje vivo del NPC al grupo de WhatsUp
-ng.chat = [...ng.chat, { de: reaccion.npc, texto: { es: reaccion.mensaje, en: reaccion.mensaje }, propio: false, t: ng.tick, ia: fuente === "llm" }];
+ng.chat = [...ng.chat, { de: reaccion.npc, texto, propio: false, t: ng.tick, ia: fuente === "llm" }];
 }
 aplicarEfecto(ng, reaccion.npc, reaccion.efecto);
 // guardamos los metadatos (para Radiografía / diagnóstico futuros)
@@ -908,11 +939,14 @@ ng.ultimaReaccion = { tipo: reaccion.tipo_firstdraft, motiv: reaccion.motivacion
 };
 const reaccionAgente = async (situacion, opts = {}) => {
 try {
-const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla: (opts.semilla || "") + situacion + Date.now(), textoUsuario: opts.textoUsuario, caso: opts.caso, historial: opts.historial, lang });
+// la MISMA semilla se reusa abajo: así el respaldo en el otro idioma es la
+// traducción exacta de esta línea cuando la reacción salió del banco.
+const semilla = (opts.semilla || "") + situacion + Date.now();
+const { reaccion, fuente, alerta } = await pedirReaccion({ situacion, npc: opts.npc, semilla, textoUsuario: opts.textoUsuario, caso: opts.caso, historial: opts.historial, lang });
 if (!reaccion) return;
 setG((s) => {
 let ng = { ...s };
-escribirReaccion(ng, reaccion, fuente, opts.destino);
+escribirReaccion(ng, reaccion, fuente, opts.destino, { situacion, semilla });
 if (alerta) ng.alertaIA = alerta; // se muestra como banner temático
 return ng;
 });
@@ -944,12 +978,14 @@ const npc = npcDeSituaciones(SITUACIONES_CHAT);
 setEscribiendoW(npc);
 try {
 // UNA sola petición: clasifica lo que hiciste Y te contesta en personaje
-const { categoria, reaccion, fuente, alerta } = await reaccionarYClasificar({ npc, textoUsuario: txt, historial, lang, semilla: "libre" + Date.now() });
+const semilla = "libre" + Date.now();
+const { categoria, reaccion, fuente, alerta } = await reaccionarYClasificar({ npc, textoUsuario: txt, historial, lang, semilla });
 const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
 setG((s) => {
 let ng = { ...s };
 aplicarFeedbackLibre(ng, fb, categoria); // Beto enseña
-if (reaccion) escribirReaccion(ng, reaccion, fuente); // y la familia contesta
+// la familia contesta (con su respaldo en el otro idioma, ver bilingue())
+if (reaccion) escribirReaccion(ng, reaccion, fuente, null, { situacion: SITUACION_POR_CATEGORIA[categoria], semilla });
 if (alerta) ng.alertaIA = alerta;
 return ng;
 });
@@ -962,25 +998,26 @@ const comentarLibre = async (casoId, texto) => {
 const txt = (texto || "").trim();
 if (!txt || comentando) return;
 const caso = CASOS.find((c) => c.id === casoId);
-setG((s) => ({ ...s, misComs: { ...s.misComs, [casoId]: [...(s.misComs[casoId] || []), { de: "tu", texto: txt, propio: true }] } }));
+setG((s) => ({ ...s, misComs: { ...s.misComs, [casoId]: [...(s.misComs[casoId] || []), { de: "tu", texto: { es: txt, en: txt }, propio: true }] } }));
 setComentando(casoId);
 try {
 // el hilo del post: los comentarios que ya estaban + los tuyos
 const historial = [
 ...(caso ? comentariosDe(caso, g, lang).map((cm) => ({ de: NPCS[cm.npc]?.nombre[lang] || cm.npc, dice: cm.texto })) : []),
-...(g.misComs[casoId] || []).map((cm) => ({ de: cm.propio ? "el jugador" : (NPCS[cm.de]?.nombre[lang] || cm.de), dice: cm.texto })),
+...(g.misComs[casoId] || []).map((cm) => ({ de: cm.propio ? "el jugador" : (NPCS[cm.de]?.nombre[lang] || cm.de), dice: txtBi(cm.texto, lang) })),
 { de: "el jugador", dice: txt },
 ];
 // una sola petición, igual que en el chat, pero contesta en el hilo del post
+const semilla = casoId + Date.now();
 const { categoria, reaccion, fuente, alerta } = await reaccionarYClasificar({
-npc: npcDeSituaciones(SITUACIONES_COMENT), textoUsuario: txt, historial, lang, semilla: casoId + Date.now(),
+npc: npcDeSituaciones(SITUACIONES_COMENT), textoUsuario: txt, historial, lang, semilla,
 caso: caso ? { titular: caso.titular[lang], fake: caso.fake } : null, mapa: MAPA_COMENT,
 });
 const fb = FEEDBACK_USUARIO[categoria] || FEEDBACK_USUARIO.neutral;
 setG((s) => {
 let ng = { ...s };
 aplicarFeedbackLibre(ng, fb, categoria);
-if (reaccion) escribirReaccion(ng, reaccion, fuente, { tipo: "coment", casoId });
+if (reaccion) escribirReaccion(ng, reaccion, fuente, { tipo: "coment", casoId }, { situacion: MAPA_COMENT[categoria], semilla });
 if (alerta) ng.alertaIA = alerta;
 return ng;
 });
@@ -1336,8 +1373,8 @@ let f = b.frag[lang];
 if (b.usaVerdad && caso.imagenRes?.txt) f += " " + caso.imagenRes.txt[lang];
 return f;
 }).join(" ");
+// Devuelve la explicación determinista YA en el idioma pedido (un string).
 const explicarContra = (res, lang) => {
-const L = { es: {}, en: {} };
 const partes = [];
 const p = (es, en) => partes.push(lang === "es" ? es : en);
 if (res.sandwich) p("🥪 ¡Sándwich de la verdad perfecto! Empezaste con el hecho, explicaste la trampa y cerraste reforzando la verdad. Justo como el manual del desmentido. La comunidad confía.", "🥪 Perfect truth sandwich! You opened with the fact, explained the trick, and closed reinforcing the truth. Exactly like the debunking handbook. The community trusts it.");
@@ -1347,7 +1384,7 @@ if (res.notas.find((n) => n.k === "burla")) p("😡 Te burlaste de quien lo crey
 if (res.notas.find((n) => n.k === "noEmpiezaHecho")) p("Recuerda: empieza SIEMPRE con el hecho, no con el mito. Lo primero que se lee es lo que se queda.", "Remember: ALWAYS start with the fact, not the myth. What's read first is what sticks.");
 if (res.tier === "buena") p("✅ Buena corrección: sólida y con fuente. Para que sea perfecta, ciérrala reforzando el hecho.", "✅ Good correction: solid and sourced. To make it perfect, close by reinforcing the fact.");
 }
-return { es: partes.join(" "), en: partes.join(" ") };
+return partes.join(" ");
 };
 // FASE 6 · Beto explica POR QUÉ ese orden concreto funcionó o falló. El
 // veredicto no se toca: ya lo decidió puntuarContra(). Esto solo lo explica,
@@ -1367,7 +1404,11 @@ veredicto: { nivel: res.tier, sandwich: res.sandwich, notas: res.notas.map((n) =
 if (!cr) return;
 const txt = [cr.acierto && "✅ " + cr.acierto, cr.fallo && "⚠️ " + cr.fallo, cr.mejora && "👉 " + cr.mejora]
 .filter(Boolean).join("  ");
-setG((s) => ({ ...s, coach: [...s.coach, { de: "beto", txt: { es: txt, en: txt } }] }));
+// Beto escribió esto en el idioma de la partida. En el otro hueco va la
+// explicación determinista, que ya está redactada en los dos idiomas: si el
+// jugador cambia de idioma, Beto sigue enseñando lo mismo y en su idioma.
+const otro = lang === "es" ? "en" : "es";
+setG((s) => ({ ...s, coach: [...s.coach, { de: "beto", txt: { [lang]: txt, [otro]: explicarContra(res, otro) || txt } }] }));
 } catch (e) { /* el feedback determinista ya se mostró */ }
 };
 const contraPublicar = (casoId, seq) => {
@@ -1391,12 +1432,12 @@ for (const k of apoyo) ng.comunidad = { ...ng.comunidad, [k]: "inmune" };
 ng.apoyos = (ng.apoyos || 0) + 1;
 if (ng.apoyos >= 2) aprenderLeccion(ng, "empodera"); // Misión 8
 encolar(ng, "whats", { de: apoyo[0] || "raul", texto: { es: "¡Vi tu corrección y la compartí! Por fin algo bien explicado 🙌", en: "Saw your correction and shared it! Finally something well explained 🙌" }, propio: false }, 4, "WhatsUp");
-coachSay(ng, "beto", { es: why.es, en: whyEn.es }, "contra_ok_" + casoId);
+coachSay(ng, "beto", { es: why, en: whyEn }, "contra_ok_" + casoId);
 notificar("✨", t.contraOk);
 } else {
 ng.infodemia = clamp(ng.infodemia + (res.tier === "contra" ? 8 : 2), 0, 100);
 if (res.notas.find((n) => n.k === "gritaMito")) ng.familiaridad = (ng.familiaridad || 0) + 2;
-coachSay(ng, "beto", { es: why.es || "Le faltó estructura. Empieza con el hecho, explica la trampa y cierra con la verdad.", en: whyEn.es || "It lacked structure. Start with the fact, explain the trick, close with the truth." }, "contra_mal_" + casoId);
+coachSay(ng, "beto", { es: why || "Le faltó estructura. Empieza con el hecho, explica la trampa y cierra con la verdad.", en: whyEn || "It lacked structure. Start with the fact, explain the trick, close with the truth." }, "contra_mal_" + casoId);
 notificar("⚠️", t.contraMal);
 }
 return ng;
@@ -1693,10 +1734,23 @@ return onClick
 ? <button onClick={onClick} className="w-full block" style={{ height: alto }}>{inner}</button>
 : <div className="w-full" style={{ height: alto }}>{inner}</div>;
 }
+// Interruptor ES/EN. Vive en la pantalla de bloqueo (para elegir idioma antes
+// de empezar) y en el escritorio (para cambiarlo sin reiniciar la partida).
+function SelectorIdioma({ lang, setLang }) {
+return (
+<div className="flex rounded-full overflow-hidden" style={{ border: "1px solid rgba(255,255,255,.3)" }}>
+{["es", "en"].map((l) => (
+<button key={l} onClick={() => setLang(l)} aria-label={l === "es" ? "Español" : "English"} aria-pressed={lang === l}
+className="px-3 py-1 text-xs font-bold uppercase"
+style={{ background: lang === l ? "#fff" : "transparent", color: lang === l ? "#111" : "#fff" }}>{l}</button>
+))}
+</div>
+);
+}
 function Lock({ t, lang, setLang, onStart }) {
 return (
 <div className="h-full flex flex-col items-center justify-between py-8 px-6" style={{ background: "linear-gradient(180deg,#12172b 0%,#1d1440 55%,#0f2e22 100%)" }}>
-
+<div className="w-full flex justify-end"><SelectorIdioma lang={lang} setLang={setLang} /></div>
 <div className="text-center">
 <div className="text-6xl font-thin text-white">21:37</div>
 <div className="text-sm text-gray-300 mt-1">{t.fecha}</div>
@@ -1734,7 +1788,7 @@ return (
 <div className="text-xs text-gray-300 mt-1">{estado}</div>
 <div className="text-xs font-bold mt-1" style={{ color: "#fbbf24" }}>{r.emoji} {r.n[lang]} · {Math.floor(g.xp)} XP</div>
 </div>
-
+<SelectorIdioma lang={lang} setLang={setLang} />
 </div>
 <div className="grid grid-cols-4 gap-5">
 {apps.map((a) => (
@@ -1921,7 +1975,7 @@ return (
 {cm.propio
 ? <span className="font-bold">{t.tuHandle} <span style={{ color: "#059669" }}>✓</span></span>
 : <button onClick={() => verPerfil(cm.de)} className="font-bold">{NPCS[cm.de]?.handle || cm.de}{cm.ia && <span title="respuesta en vivo" style={{ color: "#a855f7" }}> ✨</span>}</button>}
-{" "}{cm.texto}
+{" "}{txtBi(cm.texto, lang)}
 </p>
 ))}
 {comentando === id && <p className="text-xs italic text-gray-400">● ● ● {t.escribiendoCom}</p>}
@@ -2481,7 +2535,7 @@ return (
 <span className="text-xs opacity-70" style={{ color: arq ? "#fca5a5" : "#ddd6fe" }}>· {arq ? "SPECTRA" : "Nidssingir"}</span>
 <button onClick={cerrar} className="ml-auto text-white text-lg leading-none opacity-80" aria-label="cerrar">✕</button>
 </div>
-<p className="text-white font-black leading-tight" style={{ fontSize: 16 }}>{msg.txt[lang]}</p>
+<p className="text-white font-black leading-tight" style={{ fontSize: 16 }}>{txtBi(msg.txt, lang)}</p>
 </div>
 </div>
 <div className="flex mt-2" style={{ paddingLeft: 52 }}>

@@ -126,7 +126,7 @@ async function generarCasosProxy(n = 4, ctx = {}) {
 // Fase 6: Beto explica por qué TU orden de bloques funcionó o no.
 async function criticaProxyReal(ctx = {}) {
   const { system, user } = construirPromptCritica(ctx);
-  return validarCritica(await pedirAlProxy({ system, user, modo: "critica" }));
+  return validarCritica(await pedirAlProxy({ system, user, modo: "critica" }), ctx.lang);
 }
 
 // Enciende el puente y engancha la implementación real.
