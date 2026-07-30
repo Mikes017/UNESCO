@@ -3,9 +3,50 @@ import { pedirReaccion, reaccionarYClasificar, puente, alertaDe, FEEDBACK_USUARI
 // Para activar el LLM (tras desplegar el proxy de la Fase 2), descomenta:
 import { activarLLM } from "./agentes_online.js";
 // VERIFIED v3 — Prototipo (UNESCO Youth Hackathon 2026)
-// 🖼️ IMÁGENES (GitHub Pages): agrega entradas con la URL de tu imagen libre.
-// Ej: IMG.npcs.carmen = "/img/carmen.jpg"; IMG.casos.c1 = "/img/banco.jpg";
-const IMG = { npcs: {}, casos: {}, historias: {} };
+// ─── 🖼️ IMÁGENES ─────────────────────────────────────────────────────────────
+// Las rutas ya están puestas: solo hay que DEJAR CAER los archivos en
+// `public/img/` con el nombre que toca (ver `public/img/README.md` para la lista
+// completa y de dónde bajarlas libres de uso). Mientras un archivo no exista, la
+// app NO se rompe: cae sola al emoji y a los degradados de color, igual que hoy.
+//   public/img/npcs/<id>.jpg       · foto de perfil (cuadrada, 400×400 basta)
+//   public/img/portadas/<id>.jpg   · portada del perfil (ancha, 1200×400)
+//   public/img/casos/<id>.jpg      · imagen de la publicación (1080×1080)
+//   public/img/historias/<id>.jpg  · fondo de la historia (vertical, 1080×1920)
+// El BASE_URL hace que funcione igual en local y en GitHub Pages (/UNESCO/).
+const BASE = import.meta.env.BASE_URL || "/";
+const ruta = (carpeta, id) => BASE + "img/" + carpeta + "/" + id + ".jpg";
+// Proxies: cualquier id devuelve su ruta sin tener que listarlas una por una, así
+// que los casos que genera la IA en cada partida también pueden tener foto.
+const mapaRutas = (carpeta) => new Proxy({}, {
+  get: (_, id) => (typeof id === "string" && !id.startsWith("_") ? ruta(carpeta, id) : undefined),
+});
+const IMG = { npcs: mapaRutas("npcs"), portadas: mapaRutas("portadas"), casos: mapaRutas("casos"), historias: mapaRutas("historias") };
+// Como las rutas existen para TODOS los ids, la mayoría no tendrá archivo hasta
+// que se llene la carpeta. Así que primero se comprueba la imagen aparte y solo
+// se pinta si cargó: nunca se ve el icono de imagen rota, y en cuanto alguien
+// deje caer el archivo en `public/img/` aparece sin tocar una línea de código.
+// El resultado se recuerda por URL, así que cada archivo se comprueba una vez.
+const estadoImg = new Map(); // url → "probando" | "ok" | "no"
+const oyentesImg = new Set();
+const avisarImg = () => oyentesImg.forEach((f) => f());
+function probarImg(src) {
+  if (!src || estadoImg.has(src)) return;
+  estadoImg.set(src, "probando");
+  const im = new Image();
+  im.onload = () => { estadoImg.set(src, "ok"); avisarImg(); };
+  im.onerror = () => { estadoImg.set(src, "no"); avisarImg(); };
+  im.src = src;
+}
+function useFoto(src) {
+  const [, redibuja] = useState(0);
+  useEffect(() => {
+    const f = () => redibuja((n) => n + 1);
+    oyentesImg.add(f);
+    probarImg(src);
+    return () => { oyentesImg.delete(f); };
+  }, [src]);
+  return [estadoImg.get(src) === "ok", () => { estadoImg.set(src, "no"); avisarImg(); }];
+}
 const NPCS = {
 carmen: { handle: "carmen_74", avatar: "👵", rol: "familia", credulidad: 0.9, nombre: { es: "Tía Carmen", en: "Aunt Carmen" }, bio: { es: "Abuela de 5. Comparte todo lo que la asuste.", en: "Grandma of 5. Shares anything scary." } },
 mama: { handle: "mama.rosa", avatar: "👩", rol: "familia", credulidad: 0.7, nombre: { es: "Mamá", en: "Mom" }, bio: { es: "Enfermera. Duda, pero reenvía 'por si acaso'.", en: "Nurse. Doubts, but forwards 'just in case'." } },
@@ -34,6 +75,88 @@ troll: { handle: "vs_los_del_sur", avatar: "👺", rol: "bot", credulidad: 0, no
 arq: { handle: "el_arquitecto", avatar: "🎭", rol: "villano", credulidad: 0, nombre: { es: "El Arquitecto", en: "The Architect" }, bio: { es: "??? · La cuenta detrás de las cuentas.", en: "??? · The account behind the accounts." } },
 };
 const CIVILES = ["carmen", "mama", "lupe", "raul", "flores", "chuy", "karla", "padre", "mia"];
+// ─── DATOS DE PERFIL ──────────────────────────────────────────────────────────
+// Lo que se ve al entrar a una cuenta. No es decoración: son los datos con los
+// que de verdad se revisa a quién le estás creyendo (antigüedad, ritmo, balance
+// de seguidores, transparencia). El panel de señales del perfil los lee y aplica
+// el MISMO criterio a todas las cuentas — incluida la de tu tía — para que el
+// jugador aprenda un método, no una lista de malos.
+//   dias · antigüedad · posts · publicaciones totales (el ritmo se deriva)
+//   seg/sig · seguidores y seguidos · lugar/enlace · lo verificable
+//   nota · lo que los números NO dicen (algunas cuentas limpias en métricas
+//          tienen otro problema, y algunas raras son legítimas)
+const PERFILES = {
+carmen: { dias: 2920, posts: 380, seg: 190, sig: 210, lugar: { es: "Colonia Las Flores", en: "Las Flores neighborhood" } },
+mama: { dias: 3300, posts: 260, seg: 240, sig: 180, lugar: { es: "Colonia Las Flores", en: "Las Flores neighborhood" } },
+lupe: { dias: 2100, posts: 640, seg: 310, sig: 350, lugar: { es: "Colonia Las Flores", en: "Las Flores neighborhood" } },
+beto: { dias: 2600, posts: 890, seg: 1200, sig: 300, enlace: "verificado.mx/beto", lugar: { es: "Aquí mismo", en: "Right here" },
+  nota: { ok: true, es: "Publica su método y sus fuentes. Puedes comprobar lo que dice sin creerle a él.", en: "Publishes his method and sources. You can check what he says without taking his word." } },
+raul: { dias: 1800, posts: 420, seg: 260, sig: 300, lugar: { es: "Sitio de taxis 12", en: "Taxi stand 12" } },
+flores: { dias: 1500, posts: 300, seg: 180, sig: 220, lugar: { es: "Mercado de la colonia", en: "Neighborhood market" } },
+chuy: { dias: 2400, posts: 210, seg: 340, sig: 190, lugar: { es: "Taller de la esquina", en: "Corner repair shop" } },
+karla: { dias: 1600, posts: 980, seg: 2100, sig: 400, lugar: { es: "Gym Las Flores", en: "Las Flores Gym" } },
+padre: { dias: 2800, posts: 520, seg: 3200, sig: 120, lugar: { es: "Parroquia del barrio", en: "Neighborhood parish" },
+  nota: { ok: false, es: "Cuenta limpia, pero su grupo tiene 800 miembros: lo que reenvía se multiplica. El alcance también es responsabilidad.", en: "Clean account, but his group has 800 members: what he forwards multiplies. Reach is a responsibility too." } },
+profe: { dias: 2200, posts: 340, seg: 890, sig: 260, enlace: "esc-primaria-lasflores.edu", lugar: { es: "Escuela de la colonia", en: "Neighborhood school" } },
+mia: { dias: 1400, posts: 1600, seg: 24000, sig: 800, enlace: "viajacon-mia.example", lugar: { es: "De gira", en: "On tour" } },
+fitlife: { dias: 900, posts: 2400, seg: 120000, sig: 90, enlace: "tienda-fitlife.example",
+  nota: { ok: false, es: "⚠️ Los números se ven limpios, y ahí está la trampa: vende productos SIN marcar #publicidad. Le pagan y no lo dice. Métricas bonitas no son honestidad.", en: "⚠️ The numbers look clean, and that's the trap: sells products with NO #ad tag. He gets paid and doesn't say it. Pretty metrics aren't honesty." } },
+futgossip: { dias: 400, posts: 3200, seg: 45000, sig: 60,
+  nota: { ok: false, es: "⚠️ Vive del escándalo: nunca cita una fuente. 'Me dijeron' no es una fuente.", en: "⚠️ Lives off scandal: never cites a source. 'Someone told me' is not a source." } },
+parodia: { dias: 1900, posts: 1100, seg: 33000, sig: 210, enlace: "el-sarcastico.example/es-parodia",
+  nota: { ok: true, es: "✅ Dice en su BIO que es parodia. Eso la vuelve legítima: la sátira avisa, la desinformación finge.", en: "✅ Says in its BIO that it's parody. That makes it legitimate: satire announces itself, disinformation pretends." } },
+n0ticias: { dias: 2, posts: 174, seg: 12400, sig: 3,
+  nota: { ok: false, es: "⚠️ El nombre imita a Noticias24 con un CERO en vez de una O. Compara letra por letra con la cuenta real.", en: "⚠️ The name imitates News24 with a ZERO instead of an O. Compare it letter by letter with the real account." } },
+boletos: { dias: 6, posts: 92, seg: 800, sig: 4100,
+  nota: { ok: false, es: "⚠️ Pide depósitos directos y no tiene ni una reseña. El dinero se va y la cuenta desaparece.", en: "⚠️ Asks for direct deposits and has zero reviews. The money goes and the account vanishes." } },
+enfermera: { dias: 45, posts: 610, seg: 28000, sig: 12,
+  nota: { ok: false, es: "⚠️ Dice ser enfermera pero no da cédula ni hospital. La autoridad real se puede comprobar con un nombre.", en: "⚠️ Claims to be a nurse but gives no license or hospital. Real authority can be checked with a name." } },
+ovni: { dias: 120, posts: 2900, seg: 66000, sig: 40,
+  nota: { ok: false, es: "⚠️ Todo es 'secreto' y nada tiene fuente. Si nada se puede comprobar, no es información: es fe.", en: "⚠️ Everything is 'secret' and nothing has a source. If nothing can be checked, it isn't information: it's faith." } },
+veci: { dias: 25, posts: 480, seg: 5400, sig: 2300,
+  nota: { ok: false, es: "⚠️ Su fuente es 'mi primo del gobierno'. El primo nunca tiene nombre ni cargo.", en: "⚠️ Its source is 'my cousin in the government'. The cousin never has a name or a job title." } },
+troll: { dias: 3, posts: 210, seg: 90, sig: 3400,
+  nota: { ok: false, es: "⚠️ Cuenta de 3 días, sin foto, que solo ataca a un grupo de personas. No opina del tema: ataca a quienes SON.", en: "⚠️ A 3-day-old account, no photo, that only attacks one group of people. It doesn't discuss the topic: it attacks who people ARE." } },
+clima: { dias: 3285, posts: 8200, seg: 340000, sig: 45, enlace: "meteorologia.gob.example", lugar: { es: "Servicio Meteorológico", en: "Weather Service" } },
+medio: { dias: 7300, posts: 41000, seg: 1200000, sig: 300, enlace: "noticias24.example/quienes-somos", lugar: { es: "Redacción central", en: "Main newsroom" },
+  nota: { ok: true, es: "✅ El nombre EXACTO, sin trucos. Publica quién lo dirige y cómo corrige sus errores.", en: "✅ The EXACT name, no tricks. Publishes who runs it and how it corrects its mistakes." } },
+ong: { dias: 4380, posts: 3100, seg: 78000, sig: 210, enlace: "salud-comunitaria.example/transparencia", lugar: { es: "Centro de salud", en: "Health center" } },
+sombra: { dias: 1, posts: 0, seg: 40, sig: 0,
+  nota: { ok: false, es: "⚠️ Cuenta nueva y anónima… y es TUYA. Todas las señales que aprendiste a cazar están aquí, apuntándote.", en: "⚠️ A new, anonymous account… and it's YOURS. Every signal you learned to hunt is here, pointing at you." } },
+arq: { dias: null, posts: null, seg: null, sig: null,
+  nota: { ok: false, es: "⚠️ No hay datos. No hay antigüedad, no hay ubicación, no hay nada que comprobar. Es la cuenta detrás de las cuentas.", en: "⚠️ No data. No age, no location, nothing to check. It's the account behind the accounts." } },
+};
+// Aplica el mismo examen a toda cuenta. `mal` pinta en rojo, `tibio` en ámbar.
+// La transparencia solo se le exige a las cuentas que INFORMAN: pedirle una web
+// oficial a la cuenta de tu tía enseñaría a desconfiar de la gente equivocada.
+function senalesDe(npcId, g) {
+const p = PERFILES[npcId] || {};
+const npc = NPCS[npcId];
+const informa = ["bot", "villano", "oficial", "influencer"].includes(npc.rol);
+const posts = npcId === "sombra" ? (g?.postsOscuros.length || 0) : p.posts;
+if (p.dias == null) return [{ k: "todo", et: { es: "Sin datos que comprobar", en: "Nothing to check" }, v: { es: "???", en: "???" }, nivel: "mal" }];
+const ritmo = posts > 0 && p.dias > 0 ? posts / p.dias : 0;
+const anios = Math.floor(p.dias / 365);
+return [
+{ k: "edad", et: { es: "Antigüedad de la cuenta", en: "Account age" },
+  v: p.dias < 60 ? { es: p.dias + (p.dias === 1 ? " día" : " días"), en: p.dias + (p.dias === 1 ? " day" : " days") }
+    : anios >= 1 ? { es: anios + (anios === 1 ? " año" : " años"), en: anios + (anios === 1 ? " year" : " years") }
+    : { es: Math.floor(p.dias / 30) + " meses", en: Math.floor(p.dias / 30) + " months" },
+  nivel: p.dias < 30 ? "mal" : p.dias < 180 ? "tibio" : "ok" },
+{ k: "ritmo", et: { es: "Ritmo de publicación", en: "Posting rate" },
+  v: { es: (ritmo < 1 ? ritmo.toFixed(1) : Math.round(ritmo)) + " al día", en: (ritmo < 1 ? ritmo.toFixed(1) : Math.round(ritmo)) + " per day" },
+  nivel: ritmo >= 20 ? "mal" : ritmo >= 8 ? "tibio" : "ok" },
+{ k: "balance", et: { es: "Sigue vs. la siguen", en: "Follows vs. followers" },
+  v: { es: fmt(p.sig) + " / " + fmt(p.seg), en: fmt(p.sig) + " / " + fmt(p.seg) },
+  nivel: p.sig > p.seg * 3 ? "mal" : p.sig > p.seg ? "tibio" : "ok" },
+informa
+  ? { k: "trans", et: { es: "¿Se puede comprobar quién es?", en: "Can you check who they are?" },
+      v: p.enlace ? { es: p.enlace, en: p.enlace } : { es: "No hay enlace ni domicilio", en: "No link, no address" },
+      nivel: p.enlace ? "ok" : "mal" }
+  : { k: "trans", et: { es: "Tipo de cuenta", en: "Account type" },
+      v: { es: "Personal — no dice ser fuente", en: "Personal — doesn't claim to be a source" }, nivel: "ok" },
+];
+}
 const COMS = {
 creyente: {
 es: ["¡¡Compartan antes de que lo borren!! 🙏", "Yo sabía que nos ocultaban esto 😡", "Reenviado a todos mis grupos ✅", "Por eso ya no creo en nada"],
@@ -417,6 +540,11 @@ herrBloq: "🔒 Se desbloquea en el nivel", verBitacora: "— revisa la Bitácor
 grupo: "Familia y vecinos 💕 (23)", miembros: "tía Carmen, mamá, doña Lupe, Raúl…", mensaje: "Mensaje…",
 explicar: "🧠 Explicarle cómo verificar", ignorar: "🙈 Ignorar", corregir: "🧠 Publicar corrección", dejarlo: "🙈 Hacer como que no pasó",
 qEspera: "⏳ Te está esperando para decidir…", qUrge: "⚠️ Ya casi decide sola — contéstale", qVencida: "💔 No le contestaste: decidió sola.", famChip: "de tu gente", histDano: "lo que pasó",
+perfPubs: "publicaciones", perfSeg: "seguidores", perfSig: "siguiendo",
+perfSeguir: "Seguir", perfSiguiendo: "Siguiendo ✓", perfReportar: "🚩 Reportar cuenta", perfReportada: "🚩 reportada",
+perfRevisa: "Revisa esta cuenta", perfRevisaSub: "El mismo examen para todas las cuentas, incluidas las de tu familia. Así se revisa a QUIÉN le estás creyendo, antes de creerle.",
+perfLimpio: "Limpio:", perfOjo: "Ojo:", perfHistorias: "Historias", perfPubsTit: "Publicaciones", perfSinPosts: "Todavía no ha publicado nada.",
+perfCaido: "cayó en un engaño", perfDudoso: "dudando", perfInmune: "ya sabe verificar",
 escribiendo: "está escribiendo…",
 saludoInicial: "¡Hola mijo! ¿Emocionados por la final? Saludos de toda la familia 💕⚽",
 pregunta: "¿Esto es cierto? 🙏 Me dicen que lo reenvíe a todos…",
@@ -503,6 +631,11 @@ herrBloq: "🔒 Unlocks at level", verBitacora: "— check the Notebook",
 grupo: "Family & neighbors 💕 (23)", miembros: "Aunt Carmen, Mom, Mrs. Lupe, Raúl…", mensaje: "Message…",
 explicar: "🧠 Teach them to verify", ignorar: "🙈 Ignore", corregir: "🧠 Post a correction", dejarlo: "🙈 Pretend it did not happen",
 qEspera: "⏳ They are waiting on you to decide…", qUrge: "⚠️ About to decide alone — answer them", qVencida: "💔 You never answered: they decided alone.", famChip: "your people", histDano: "what happened",
+perfPubs: "posts", perfSeg: "followers", perfSig: "following",
+perfSeguir: "Follow", perfSiguiendo: "Following ✓", perfReportar: "🚩 Report account", perfReportada: "🚩 reported",
+perfRevisa: "Check this account", perfRevisaSub: "The same test for every account, your family's included. This is how you check WHO you are believing, before you believe them.",
+perfLimpio: "Clean:", perfOjo: "Careful:", perfHistorias: "Stories", perfPubsTit: "Posts", perfSinPosts: "Nothing posted yet.",
+perfCaido: "fell for a hoax", perfDudoso: "wavering", perfInmune: "knows how to verify",
 escribiendo: "is typing…",
 saludoInicial: "Hi sweetie! Excited for the final? Everyone says hello 💕⚽",
 pregunta: "Is this true? 🙏 They are telling me to forward it to everyone…",
@@ -627,7 +760,9 @@ cola: [
 { en: 9, canal: "dmBeto", m: { de: "beto", texto: { es: "El post de la tía está en el feed de Instagrama. Mi método: 1) toca su NOMBRE 👤 2) toca la IMAGEN 🔎 3) si dudas, reenvíamelo con ⋯ 📩 4) repórtalo con ⋯ y dime QUÉ TIPO de engaño es — el diagnóstico importa 🚩", en: "Auntie's post is on the Instagrama feed. My method: 1) tap their NAME 👤 2) tap the IMAGE 🔎 3) if in doubt, forward it via ⋯ 📩 4) report via ⋯ and tell me WHAT TYPE of deception it is — the diagnosis matters 🚩" }, propio: false } },
 ],
 familiaridad: 0, modoOscuro: false, koin: 0, misionIdx: 0, misionSel: {}, postsOscuros: [], traicion: false, finSeq: -1, ultimoRes: null,
-coach: [], _ck: [], tiposVistos: [], consVistas: [], danosFam: [], postsFam: [], afectados: {}, consecuencia: null, likes: [], contra: {}, apoyos: 0, misPosts: [], misComs: {}, alertaIA: null, ultimaReaccion: null, respuestasLibres: 0,
+coach: [], _ck: [], tiposVistos: [], consVistas: [], danosFam: [], postsFam: [], afectados: {},
+// a quién sigues y a quién reportaste: seguir una cuenta basura la alimenta
+siguiendo: ["beto", "medio", "clima"], cuentasRep: [], consecuencia: null, likes: [], contra: {}, apoyos: 0, misPosts: [], misComs: {}, alertaIA: null, ultimaReaccion: null, respuestasLibres: 0,
 historias: HIST_AMB.slice(0, 2).map((h) => ({ ...h, tipo: "amb", vista: false, respondida: false, expiraEn: 999 })),
 histSpawn: 24,
 lecciones: [], reenviados: [],
@@ -1083,6 +1218,51 @@ return ng;
 });
 setSheet(null);
 };
+// Seguir no es gratis: a una cuenta basura le estás regalando alcance, y ese
+// alcance es exactamente lo que busca. Seguir a las fuentes que sí se pueden
+// comprobar es la otra mitad de la lección.
+const seguir = (npcId) => {
+setG((s) => {
+let ng = { ...s };
+const npc = NPCS[npcId];
+const sospechoso = npc.rol === "bot" || npc.rol === "villano";
+if (ng.siguiendo.includes(npcId)) {
+ng.siguiendo = ng.siguiendo.filter((x) => x !== npcId);
+if (sospechoso) { ng.infodemia = clamp(ng.infodemia - 2, 0, 100); ganarXp(ng, 4); coachSay(ng, "beto", { es: "Bien hecho: dejar de seguirla le quita alcance. Estas cuentas viven de que las sigamos 👌", en: "Nice: unfollowing takes away its reach. These accounts live off us following them 👌" }, "unfollow_bot"); }
+return ng;
+}
+ng.siguiendo = [...ng.siguiendo, npcId];
+if (sospechoso) {
+ng.infodemia = clamp(ng.infodemia + 3, 0, 100);
+coachSay(ng, "beto", { es: "Primo… ¿la SEGUISTE? 😬 Cada seguidor le da alcance, y el alcance es su negocio. Mira sus señales antes de seguir a alguien.", en: "Cousin… you FOLLOWED it? 😬 Every follower gives it reach, and reach is its business. Check the signals before following anyone." }, "follow_bot");
+} else if (npc.rol === "oficial") {
+ganarXp(ng, 3);
+coachSay(ng, "beto", { es: "Eso sí sirve: llenar tu feed de fuentes que se pueden comprobar es la mejor vacuna 💪", en: "That helps: filling your feed with sources you can check is the best vaccine 💪" }, "follow_ok");
+}
+return ng;
+});
+};
+// Reportar la CUENTA, no el post. Es lo que se hace con un troll o un imitador:
+// el problema no es una publicación suelta, es la cuenta entera.
+const reportarCuenta = (npcId) => {
+setG((s) => {
+let ng = { ...s };
+if (ng.cuentasRep.includes(npcId)) return ng;
+ng.cuentasRep = [...ng.cuentasRep, npcId];
+const npc = NPCS[npcId];
+if (npc.rol === "bot" || npc.rol === "villano") {
+ganarXp(ng, 10);
+ng.infodemia = clamp(ng.infodemia - 4, 0, 100);
+ng.siguiendo = ng.siguiendo.filter((x) => x !== npcId);
+coachSay(ng, "beto", { es: "Exacto, primo: aquí el problema no era UN post, era la cuenta entera. Reportar la cuenta le pega a la raíz 🚩", en: "Exactly, cousin: the problem here wasn't ONE post, it was the whole account. Reporting the account hits the root 🚩" }, "rep_cuenta");
+} else {
+ng.cred = clamp(ng.cred - 6, 0, 100);
+coachSay(ng, "beto", { es: "Ojo: esa cuenta no tenía señales de fraude. Reportar a quien no lo merece también hace daño — y te quita credibilidad.", en: "Careful: that account had no fraud signals. Reporting someone who doesn't deserve it does harm too — and costs you credibility." }, "rep_injusto");
+}
+notificar("Instagrama", t.repEnviado);
+return ng;
+});
+};
 const darLike = (casoId) => {
 setG((s) => {
 const caso = CASOS.find((c) => c.id === casoId);
@@ -1399,7 +1579,9 @@ else setPantalla(app);
 {pantalla === "news" && <Noticias t={t} lang={lang} g={g} />}
 {sheet && <Sheets t={t} lang={lang} g={g} nivel={nivel} sheet={sheet} setSheet={setSheet} reportar={reportarCaso} compartir={compartirCaso} reenviar={reenviarBeto} contraPublicar={contraPublicar} />}
 {histActual && <VisorHistoria t={t} lang={lang} h={histActual} cerrar={() => setHistoria(null)} responder={responderHistoria} />}
-{perfil && <PerfilMini t={t} lang={lang} npcId={perfil} g={g} cerrar={() => setPerfil(null)} />}
+{perfil && <Perfil t={t} lang={lang} npcId={perfil} g={g} cerrar={() => setPerfil(null)} setSheet={setSheet}
+  verHistoria={(hid) => { setPerfil(null); setHistoria(hid); setG((s) => ({ ...s, historias: s.historias.map((h) => (h.id === hid ? { ...h, vista: true } : h)) })); }}
+  seguir={seguir} reportarCuenta={reportarCuenta} />}
 {radio && <Radiografia t={t} lang={lang} casoId={radio} cerrar={() => setRadio(null)} />}
 {proto && g.crisis && <Protocolo t={t} lang={lang} g={g} paso={pasoProtocolo} cerrar={() => setProto(false)} />}
 {g.fin && g.final && <Final t={t} lang={lang} g={g} finalesVistos={finalesVistos} reiniciar={reiniciar} />}
@@ -1437,16 +1619,18 @@ return "transparent";
 function Avatar({ id, size = 32, onClick }) {
 const npc = NPCS[id];
 const foto = IMG.npcs[id];
+const [hayFoto, fallo] = useFoto(foto);
 const st = { width: size, height: size };
-const inner = foto
-? <img src={foto} alt={npc?.handle} className="rounded-full object-cover" style={st} />
+const inner = hayFoto
+? <img src={foto} alt={npc?.handle} onError={fallo} className="rounded-full object-cover" style={st} />
 : <div className="rounded-full bg-gray-200 flex items-center justify-center" style={{ ...st, fontSize: size * 0.5 }}>{npc?.avatar || "👤"}</div>;
 return onClick ? <button onClick={onClick} className="flex-shrink-0">{inner}</button> : <span className="flex-shrink-0">{inner}</span>;
 }
 function Escena({ imgUrl, grad, emoji, texto, alto = 190, fontSize = 14, onClick }) {
-const inner = imgUrl ? (
+const [hayFoto, fallo] = useFoto(imgUrl);
+const inner = hayFoto ? (
 <div className="overflow-hidden relative w-full h-full">
-<img src={imgUrl} alt="" className="w-full h-full object-cover" />
+<img src={imgUrl} alt="" onError={fallo} className="w-full h-full object-cover" />
 {texto && <div className="absolute bottom-0 left-0 right-0 px-4 py-2 text-white font-bold text-left" style={{ background: "linear-gradient(0deg, rgba(0,0,0,.78), transparent)", fontSize }}>{texto}</div>}
 </div>
 ) : (
@@ -1952,6 +2136,7 @@ return (
 }
 function VisorHistoria({ t, lang, h, cerrar, responder }) {
 const foto = IMG.historias[h.id];
+const [hayFoto, falloFoto] = useFoto(foto);
 return (
 <div className="absolute inset-0 z-40 flex flex-col" style={{ background: "#000" }}>
 <style>{`@keyframes barra { from { width: 0%; } to { width: 100%; } }`}</style>
@@ -1968,9 +2153,9 @@ return (
 <button onClick={cerrar} className="ml-auto text-white text-xl px-2">✕</button>
 </div>
 <div className="flex-1 flex flex-col items-center justify-center px-6 relative">
-{foto ? <img src={foto} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <div className="absolute inset-0" style={{ background: h.grad }} />}
+{hayFoto ? <img src={foto} alt="" onError={falloFoto} className="absolute inset-0 w-full h-full object-cover" /> : <div className="absolute inset-0" style={{ background: h.grad }} />}
 <div className="relative text-center">
-{!foto && <div style={{ fontSize: 72 }}>{h.emojis}</div>}
+{!hayFoto && <div style={{ fontSize: 72 }}>{h.emojis}</div>}
 <div className="text-white text-xl font-black mt-4 px-4 py-2 rounded-xl" style={{ background: "rgba(0,0,0,.35)" }}>{h.texto[lang]}</div>
 </div>
 </div>
@@ -1993,29 +2178,154 @@ return (
 // cuándo, a qué ritmo y si se puede comprobar. Por eso no es una tarjetita: es
 // una pantalla donde se puede seguir, mirar sus publicaciones, ver sus historias
 // y reportar la cuenta. Y refleja la partida: si esa persona ya cayó, se nota.
-function PerfilMini({ t, lang, npcId, g, cerrar }) {
+// El rol es una clave interna ("familia", "bot"…): traducirlo evita que la
+// versión en inglés se salga al español justo en la pantalla de verificar.
+const ROLES = {
+familia: { ico: "👨‍👩‍👧", es: "familia", en: "family" }, vecino: { ico: "🏘️", es: "vecino/a", en: "neighbor" },
+aliado: { ico: "🤝", es: "aliado", en: "ally" }, influencer: { ico: "🤳", es: "influencer", en: "influencer" },
+oficial: { ico: "✔", es: "fuente oficial", en: "official source" }, bot: { ico: "⚠️", es: "cuenta sospechosa", en: "suspicious account" },
+villano: { ico: "🎭", es: "cuenta hostil", en: "hostile account" },
+};
+const PORTADAS_ROL = {
+familia: "linear-gradient(135deg,#be185d,#7c2d12)", vecino: "linear-gradient(135deg,#0f766e,#134e4a)",
+aliado: "linear-gradient(135deg,#7c3aed,#4f46e5)", influencer: "linear-gradient(135deg,#db2777,#4c1d95)",
+oficial: "linear-gradient(135deg,#1d4ed8,#0c4a6e)", bot: "linear-gradient(135deg,#7f1d1d,#1c1917)",
+villano: "linear-gradient(135deg,#450a0a,#0c0a09)",
+};
+function Perfil({ t, lang, npcId, g, cerrar, setSheet, verHistoria, seguir, reportarCuenta }) {
 const npc = NPCS[npcId];
 if (!npc) return null;
+const p = PERFILES[npcId] || {};
+const portada = IMG.portadas[npcId];
+const [hayPortada, falloPortada] = useFoto(portada);
+const [verSenales, setVerSenales] = useState(true);
 const estado = g.comunidad[npcId];
-const rolL = { familia: "👨‍👩‍👧", vecino: "🏘️", influencer: "🤳", bot: "⚠️", oficial: "✔", aliado: "🤝", villano: "🎭" }[npc.rol];
+const rol = ROLES[npc.rol] || ROLES.vecino;
 const sospechoso = npc.rol === "bot" || npc.rol === "villano";
+const sigo = g.siguiendo.includes(npcId);
+const reportada = g.cuentasRep.includes(npcId);
+// Sus publicaciones: las que ya salieron en el feed, más el post con el que
+// contó su propio daño si le pasó algo por no contestarle.
+const susCasos = g.liberados.filter((id) => CASOS.find((c) => c.id === id)?.autorId === npcId).reverse();
+const susDanos = g.postsFam.filter((x) => x.npc === npcId).reverse();
+const susHist = g.historias.filter((h) => h.npc === npcId && (h.expiraEn > 0 || h.tipo === "amb" || h.tipo === "dano"));
+const nPosts = npcId === "sombra" ? g.postsOscuros.length : (p.posts || 0) + susDanos.length;
+const senales = senalesDe(npcId, g);
+const col = { ok: "#059669", tibio: "#b45309", mal: "#b91c1c" };
+const bg = { ok: "#f0fdf4", tibio: "#fffbeb", mal: "#fef2f2" };
+const ico = { ok: "✅", tibio: "⚠️", mal: "🚩" };
+const malas = senales.filter((s) => s.nivel === "mal").length;
 return (
-<div className="absolute inset-0 z-50 flex items-end" style={{ background: "rgba(0,0,0,.6)" }} onClick={cerrar}>
-<div className="w-full rounded-t-3xl px-5 pt-5 pb-8 bg-white" onClick={(e) => e.stopPropagation()}>
-<div className="flex items-center gap-3">
-<Avatar id={npcId} size={64} />
-<div className="flex-1">
-<div className="text-base font-black flex items-center gap-1">{npc.nombre[lang]} {npc.rol === "oficial" && <span style={{ color: "#3b82f6" }}>✔</span>}</div>
-<div className="text-xs text-gray-500">@{npc.handle}</div>
+<div className="absolute inset-0 z-50 flex flex-col bg-white overflow-y-auto">
+<div className="flex items-center gap-2 px-3 py-2.5 sticky top-0 z-10 bg-white border-b" style={{ borderColor: "#f3f4f6" }}>
+<button onClick={cerrar} className="text-xl px-1 text-gray-700" aria-label="volver">←</button>
+<span className="text-sm font-black">@{npc.handle}</span>
+{npc.rol === "oficial" && <span style={{ color: "#3b82f6" }}>✔</span>}
+{sospechoso && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>{malas} 🚩</span>}
 </div>
-<button onClick={cerrar} className="text-gray-400 text-xl px-2">✕</button>
+<div className="relative">
+<div className="w-full" style={{ height: 108 }}>
+{hayPortada
+? <img src={portada} alt="" onError={falloPortada} className="w-full h-full object-cover" />
+: <div className="w-full h-full" style={{ background: PORTADAS_ROL[npc.rol] || PORTADAS_ROL.vecino }} />}
 </div>
-<div className="flex gap-2 mt-3 flex-wrap">
-<span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: sospechoso ? "#fee2e2" : "#f3f4f6", color: sospechoso ? "#991b1b" : "#374151" }}>{rolL} {npc.rol}</span>
-{estado && <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "#f3f4f6", color: estado === "caido" ? "#991b1b" : estado === "inmune" ? "#166534" : "#374151" }}>{estado === "sano" ? "🟢" : estado === "dudoso" ? "🟡" : estado === "caido" ? "🔴" : "🛡️"} {estado}</span>}
+<div className="absolute" style={{ left: 16, bottom: -34 }}>
+<button onClick={() => susHist.length && verHistoria(susHist[0].id)} className="block rounded-full p-0.5" style={{ background: susHist.length ? "linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)" : "#fff" }}>
+<div className="rounded-full bg-white p-0.5"><Avatar id={npcId} size={72} /></div>
+</button>
+</div>
+</div>
+<div className="px-4" style={{ marginTop: 44 }}>
+<div className="text-lg font-black flex items-center gap-1.5 flex-wrap">
+{npc.nombre[lang]}
+{npc.rol === "oficial" && <span style={{ color: "#3b82f6" }}>✔</span>}
+{estado === "caido" && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>💔 {t.perfCaido}</span>}
+{estado === "dudoso" && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}>🟡 {t.perfDudoso}</span>}
+{estado === "inmune" && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dcfce7", color: "#166534" }}>🛡️ {t.perfInmune}</span>}
+</div>
+<div className="flex gap-2 mt-1.5 flex-wrap">
+<span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: sospechoso ? "#fee2e2" : "#f3f4f6", color: sospechoso ? "#991b1b" : "#374151" }}>{rol.ico} {rol[lang]}</span>
 {npcId === "n0ticias" && g.strikes > 0 && <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>🚩 {g.strikes} strikes</span>}
+{reportada && <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}>{t.perfReportada}</span>}
+</div>
+<div className="flex gap-6 mt-3">
+{[[nPosts, t.perfPubs], [p.seg, t.perfSeg], [p.sig, t.perfSig]].map(([n, et], i) => (
+<div key={i}>
+<div className="text-base font-black">{n == null ? "—" : fmt(n)}</div>
+<div className="text-xs text-gray-500">{et}</div>
+</div>
+))}
 </div>
 <p className="text-sm mt-3 leading-relaxed text-gray-700">{npc.bio[lang]}</p>
+{p.lugar && <div className="text-xs text-gray-500 mt-1.5">📍 {p.lugar[lang]}</div>}
+{p.enlace && <div className="text-xs mt-0.5" style={{ color: "#1d4ed8" }}>🔗 {p.enlace}</div>}
+<div className="flex gap-2 mt-3">
+<button onClick={() => seguir(npcId)} className="flex-1 py-2.5 rounded-xl text-sm font-bold" style={sigo ? { background: "#f3f4f6", color: "#374151", border: "1px solid #e5e7eb" } : { background: "#1d4ed8", color: "#fff" }}>{sigo ? t.perfSiguiendo : t.perfSeguir}</button>
+{sospechoso && <button onClick={() => reportarCuenta(npcId)} disabled={reportada} className="flex-1 py-2.5 rounded-xl text-sm font-bold" style={{ background: reportada ? "#f3f4f6" : "#fee2e2", color: reportada ? "#9ca3af" : "#991b1b" }}>{t.perfReportar}</button>}
+</div>
+</div>
+<div className="px-4 mt-4">
+<button onClick={() => setVerSenales((v) => !v)} className="w-full flex items-center gap-2 text-left">
+<span className="text-sm font-black">🔍 {t.perfRevisa}</span>
+<span className="ml-auto text-xs text-gray-400">{verSenales ? "▲" : "▼"}</span>
+</button>
+{verSenales && (
+<>
+<p className="text-xs text-gray-500 mt-1 leading-relaxed">{t.perfRevisaSub}</p>
+<div className="mt-2 space-y-1.5">
+{senales.map((s) => (
+<div key={s.k} className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: bg[s.nivel] }}>
+<span className="text-sm">{ico[s.nivel]}</span>
+<span className="text-xs text-gray-600 flex-1">{s.et[lang]}</span>
+<span className="text-xs font-bold text-right" style={{ color: col[s.nivel], maxWidth: "50%", wordBreak: "break-word" }}>{s.v[lang]}</span>
+</div>
+))}
+</div>
+{p.nota && (
+<div className="mt-2 rounded-xl px-3 py-2.5 text-xs leading-relaxed" style={{ background: p.nota.ok ? "#f0fdf4" : "#fef2f2", border: "1px solid " + (p.nota.ok ? "#bbf7d0" : "#fecaca"), color: p.nota.ok ? "#166534" : "#991b1b" }}>
+<span className="font-black">{p.nota.ok ? t.perfLimpio : t.perfOjo}</span> {p.nota[lang]}
+</div>
+)}
+</>
+)}
+</div>
+{susHist.length > 0 && (
+<div className="px-4 mt-5">
+<div className="text-sm font-black mb-2">{t.perfHistorias}</div>
+<div className="flex gap-3 overflow-x-auto pb-1">
+{susHist.map((h) => (
+<button key={h.id} onClick={() => verHistoria(h.id)} className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 72, border: "2px solid " + (h.tipo === "dano" ? "#fca5a5" : h.tipo === "riesgo" ? "#dc2626" : "#e5e7eb") }}>
+<Escena grad={h.grad} emoji={h.emojis} texto={null} alto={96} />
+</button>
+))}
+</div>
+</div>
+)}
+<div className="px-4 mt-5 pb-8">
+<div className="text-sm font-black mb-2">{t.perfPubsTit}</div>
+{susCasos.length === 0 && susDanos.length === 0
+? <p className="text-xs text-gray-400 italic py-4 text-center">{t.perfSinPosts}</p>
+: (
+<div className="grid grid-cols-3 gap-1">
+{susDanos.map((d, i) => (
+<div key={"d" + i} className="relative" style={{ aspectRatio: "1/1" }}>
+<Escena grad={d.grad} emoji={d.emoji} texto={null} alto={"100%"} />
+<span className="absolute top-1 right-1 text-xs">💔</span>
+<span className="absolute inset-x-0 bottom-0 px-1.5 py-1 text-white leading-tight" style={{ fontSize: 8, background: "linear-gradient(0deg,rgba(0,0,0,.8),transparent)" }}>{d.texto[lang].slice(0, 48)}…</span>
+</div>
+))}
+{susCasos.map((id) => {
+const c = CASOS.find((x) => x.id === id);
+const res = g.resueltos[id];
+return (
+<button key={id} onClick={() => setSheet({ tipo: "imagen", casoId: id })} className="relative block" style={{ aspectRatio: "1/1", opacity: res?.eliminado ? 0.45 : 1 }}>
+<Escena imgUrl={IMG.casos[id]} grad={c.grad} emoji={c.img} texto={null} alto={"100%"} />
+{res?.eliminado && <span className="absolute inset-0 flex items-center justify-center text-lg" style={{ background: "rgba(0,0,0,.35)" }}>🚫</span>}
+</button>
+);
+})}
+</div>
+)}
 </div>
 </div>
 );
