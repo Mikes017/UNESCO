@@ -1,16 +1,66 @@
-# 🖼️ Imágenes de VERIFIED — qué archivo va en cada lugar
+# 🖼️ Imágenes de VERIFIED — qué imagen va en cada lugar
 
-Las rutas **ya están puestas en el código**. Aquí solo hay que dejar caer los
-archivos con el nombre exacto de la tabla. No hay que editar nada en `src/`.
+Todo está ya conectado en el código: solo hay que **poner la imagen**, por
+archivo o por link. Las tablas del final dicen exactamente qué va en cada sitio.
 
-Mientras un archivo no exista, la app **no se rompe**: usa el emoji y el
-degradado de color que ya trae. Se puede llenar de a poco, en cualquier orden.
+## Dos maneras de cargarlas: elige una (o mézclalas)
+
+### A · Archivos (recomendado para la demo)
+
+Dejar caer el `.jpg` en la carpeta que toca, con el nombre exacto de las tablas
+de abajo. No se toca nada de `src/`.
+
+```bash
+# ejemplo: la foto de perfil de la tía Carmen
+cp ~/Descargas/abuela.jpg public/img/npcs/carmen.jpg
+
+npm run dev        # comprobar en local: entra al perfil, la foto aparece sola
+git add public/img && git commit -m "fotos de perfil" && git push
+npm run deploy     # ⚠️ sin esto la página pública NO se actualiza
+```
+
+Ventaja: la imagen viaja con la app. Funciona sin internet, que es justo la
+prueba estrella de la demo (desconectar el WiFi en vivo).
+
+### B · Links (si no quieres bajar archivos)
+
+Pegar la URL **directa** en el bloque `LINKS`, arriba de `src/App.jsx` (línea
+~30). Lo que esté en `LINKS` manda sobre el archivo local, así que se pueden
+mezclar: unas cuentas por link y otras por archivo.
+
+```js
+const LINKS = {
+  npcs:      { carmen: "https://images.pexels.com/photos/1234/abuela.jpg" },
+  portadas:  { medio: "https://…/redaccion.jpg" },
+  casos:     { c1: "https://…/banco.jpg" },
+  historias: {},
+  galeria:   { carmen: ["https://…/1.jpg", "https://…/2.jpg"] },  // un ARRAY
+};
+```
+
+Cómo sacar la URL directa: en Pexels/Unsplash, clic derecho sobre la imagen
+grande → **"Copiar dirección de la imagen"**. Tiene que acabar en `.jpg` (o
+llevar parámetros después). Si copias la URL de la *página* (`pexels.com/photo/…`)
+no es una imagen y no cargará.
+
+Después: `git commit` de `src/App.jsx` + `git push` + `npm run deploy`.
+
+> ⚠️ Con links la app depende de que ese servidor siga respondiendo y de que
+> permita mostrar sus imágenes desde otro sitio. Algunos bancos de imágenes lo
+> bloquean, y entonces se ve el emoji de siempre. **Para la demo del jurado, usa
+> archivos.**
+
+### Da igual cuál elijas: si algo falta, no se rompe nada
+
+La app comprueba cada imagen antes de pintarla. Lo que no exista (o no cargue)
+cae solo al emoji y al degradado de color que ya trae. Se puede llenar de a
+poco, en cualquier orden, y probar en cualquier momento.
 
 ## Reglas
 
 | | |
 |---|---|
-| Formato | `.jpg` (obligatorio — las rutas lo esperan) |
+| Formato | `.jpg` si va por **archivo** (las rutas lo esperan). Por **link**, cualquier formato que abra el navegador |
 | Perfiles `npcs/` | cuadrado, 400×400 px basta |
 | Portadas `portadas/` | ancho, 1200×400 px |
 | Muro `galeria/<id>/` | cuadrado, 1080×1080 px |
