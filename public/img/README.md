@@ -13,6 +13,7 @@ degradado de color que ya trae. Se puede llenar de a poco, en cualquier orden.
 | Formato | `.jpg` (obligatorio — las rutas lo esperan) |
 | Perfiles `npcs/` | cuadrado, 400×400 px basta |
 | Portadas `portadas/` | ancho, 1200×400 px |
+| Muro `galeria/<id>/` | cuadrado, 1080×1080 px |
 | Publicaciones `casos/` | cuadrado, 1080×1080 px |
 | Historias `historias/` | vertical, 1080×1920 px |
 | Peso | comprimir a <150 kB cada una (son para móvil) |
@@ -67,6 +68,62 @@ Mismos nombres que arriba: `carmen.jpg`, `n0ticias.jpg`, etc. Si no hay archivo,
 el perfil usa un degradado según el tipo de cuenta y se ve bien igual.
 Vale la pena hacer solo las que más se visitan: `n0ticias`, `medio`, `fitlife`,
 `clima`, `beto`, `carmen`.
+
+## `public/img/galeria/<id>/` — el muro de fotos de cada cuenta
+
+Cada NPC tiene **su propia carpeta**. Ahi van SUS fotos, las que se ven en la
+rejilla de su perfil (ademas del avatar y la portada). Se numeran desde 1:
+
+```
+public/img/galeria/carmen/1.jpg
+public/img/galeria/carmen/2.jpg   ← se pueden ir agregando de a poco
+public/img/galeria/carmen/3.jpg
+```
+
+Se buscan hasta **12 ranuras** por cuenta y se muestran solo las que existan, en
+orden. No hay que declarar nada en el codigo ni avisar cuantas hay: con poner
+`1.jpg` ya aparece una, y el contador de publicaciones del perfil las suma.
+Al tocar una se abre a pantalla completa y se pasa con ‹ ›.
+
+Cuadradas (1080×1080) para que la rejilla quede pareja.
+
+> 💡 **Por que importa para el juego:** un perfil con fotos de la vida de alguien
+> se siente real, y hace mas incomodo lo que viene despues — entre esas fotos
+> esta la cadena que reenvio. Y en las cuentas falsas conviene lo contrario:
+> llenarlas de fotos genericas de banco de imagenes, porque es exactamente lo que
+> hacen las cuentas de estafa para parecer legitimas. Esa sensacion de "muro sin
+> vida propia" es una pista que el jugador puede aprender a leer.
+
+| Carpeta | Cuenta | Que fotos le van bien |
+|---|---|---|
+| `galeria/carmen/` | Tía Carmen · @carmen_74 | su cocina, plantas en macetas, nietos de espaldas, pan dulce, la virgen del pasillo |
+| `galeria/mama/` | Mamá · @mama.rosa | turnos en el hospital, su cafe de la mañana, zapatos de enfermera, plantas |
+| `galeria/lupe/` | Doña Lupe · @lupe.vecina | la banqueta de su casa, su perro, la tienda de la esquina, macetas |
+| `galeria/beto/` | Beto · @beto.mx | su escritorio con dos pantallas, notas en post-its, cafe frio, libros de datos |
+| `galeria/raul/` | Raúl · @raul_taxi | su taxi limpio, el volante, el trafico al amanecer, el sitio de taxis |
+| `galeria/flores/` | Sra. Flores · @sra.flores | ramos de flores, el puesto del mercado, manos con tijeras de podar |
+| `galeria/chuy/` | Don Chuy · @don_chuy | herramientas ordenadas, un motor abierto, la pantalla del Mundial en el taller |
+| `galeria/karla/` | Karla · @karla_gym | pesas, botella de agua, el gym vacio de madrugada, tenis deportivos |
+| `galeria/padre/` | Padre Tomás · @padre_tomas | la parroquia por dentro, velas, sillas vacias, un jardin |
+| `galeria/profe/` | Profa. Lena · @profe.lena | pizarron con ejercicios, mochilas, libros apilados, el patio de la escuela |
+| `galeria/fitlife/` | FitLife Dr. · @fitlife_dr | batidos, mancuernas, espejo del gym, frascos de suplemento (SIN marcas reales) |
+| `galeria/mia/` | Mía · @viaja_con_mia | maletas, aviones desde la ventanilla, mapas, sellos de pasaporte |
+| `galeria/n0ticias/` | n0ticias24 · @n0ticias24_oficial ⚠️ | pantallas de television genericas, microfonos, graficas borrosas — todo de banco de imagenes, que es justo la pista |
+| `galeria/boletos/` | BoletosFinalMX · @boletos_finalmx ⚠️ | boletos genericos, un estadio vacio, capturas de pago borrosas — fotos claramente de stock |
+| `galeria/futgossip/` | FutGossip · @futgossip_mx | vestidores vacios, microfonos de prensa, cesped, gradas |
+| `galeria/enfermera/` | EnfermeraDespierta · @enfermera_despierta ⚠️ | frascos sin etiqueta, guantes, hierbas — nada de rostros, la cuenta es anonima |
+| `galeria/ovni/` | VerdadOculta · @verdad_oculta_mx ⚠️ | cielos nocturnos, luces lejanas, antenas, documentos tachados |
+| `galeria/veci/` | VeciInforma · @veci_informa ⚠️ | calles del barrio, postes de luz, avisos pegados en la pared, tinacos |
+| `galeria/clima/` | Clima Oficial · @clima_oficial | mapas de satelite, radares, nubes, pluviometros |
+| `galeria/medio/` | Noticias24 · @noticias24_verif | la redaccion, escritorios, prensas, credenciales de prensa |
+| `galeria/ong/` | Salud Comunitaria · @salud_comunitaria_ong | jornadas de vacunacion, voluntarios de espaldas, carpas, folletos |
+| `galeria/parodia/` | El Sarcástico · @el_sarcastico_mx | memes deportivos propios, mascaras de teatro, cosas absurdas |
+| `galeria/sombra/` | info_urgente_mx · @info_urgente_mx ⚠️ | pantallas en la oscuridad, cables, un cuarto sin ventanas |
+| `galeria/troll/` | AntiSur · @vs_los_del_sur ⚠️ | fondos oscuros, texto sobre negro, imagenes agresivas y vacias |
+| `galeria/arq/` | El Arquitecto · @el_arquitecto ⚠️ | mejor dejar la carpeta vacia: su perfil no debe tener nada que comprobar |
+
+⚠️ = cuenta falsa: **nada de personas reales identificables** aqui. Objetos,
+lugares, siluetas o gente de espaldas.
 
 ## `public/img/casos/` — imagen de cada publicación (17)
 

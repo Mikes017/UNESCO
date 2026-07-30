@@ -12,9 +12,16 @@ import { activarLLM } from "./agentes_online.js";
 //   public/img/portadas/<id>.jpg   · portada del perfil (ancha, 1200×400)
 //   public/img/casos/<id>.jpg      · imagen de la publicación (1080×1080)
 //   public/img/historias/<id>.jpg  · fondo de la historia (vertical, 1080×1920)
+//   public/img/galeria/<id>/1.jpg  · SUS fotos, las del muro de su perfil
 // El BASE_URL hace que funcione igual en local y en GitHub Pages (/UNESCO/).
 const BASE = import.meta.env.BASE_URL || "/";
 const ruta = (carpeta, id) => BASE + "img/" + carpeta + "/" + id + ".jpg";
+// La galería de cada cuenta: una carpeta por NPC con las fotos numeradas. Se
+// buscan GALERIA_MAX ranuras y se muestran solo las que existan, así que se
+// llenan de a poco (1.jpg, luego 2.jpg…) sin declarar nada en el código.
+const GALERIA_MAX = 12;
+const rutaGaleria = (id, i) => BASE + "img/galeria/" + id + "/" + i + ".jpg";
+const galeriaDe = (id) => Array.from({ length: GALERIA_MAX }, (_, i) => rutaGaleria(id, i + 1));
 // Proxies: cualquier id devuelve su ruta sin tener que listarlas una por una, así
 // que los casos que genera la IA en cada partida también pueden tener foto.
 const mapaRutas = (carpeta) => new Proxy({}, {
@@ -46,6 +53,19 @@ function useFoto(src) {
     return () => { oyentesImg.delete(f); };
   }, [src]);
   return [estadoImg.get(src) === "ok", () => { estadoImg.set(src, "no"); avisarImg(); }];
+}
+// Igual, pero para una lista: devuelve solo las que cargaron, en orden. Así una
+// galería con 3 fotos puestas muestra 3, no 3 y nueve huecos.
+function useFotos(srcs) {
+  const [, redibuja] = useState(0);
+  const clave = srcs.join("|");
+  useEffect(() => {
+    const f = () => redibuja((n) => n + 1);
+    oyentesImg.add(f);
+    srcs.forEach(probarImg);
+    return () => { oyentesImg.delete(f); };
+  }, [clave]);
+  return srcs.filter((s) => estadoImg.get(s) === "ok");
 }
 const NPCS = {
 carmen: { handle: "carmen_74", avatar: "👵", rol: "familia", credulidad: 0.9, nombre: { es: "Tía Carmen", en: "Aunt Carmen" }, bio: { es: "Abuela de 5. Comparte todo lo que la asuste.", en: "Grandma of 5. Shares anything scary." } },
@@ -2199,6 +2219,9 @@ const p = PERFILES[npcId] || {};
 const portada = IMG.portadas[npcId];
 const [hayPortada, falloPortada] = useFoto(portada);
 const [verSenales, setVerSenales] = useState(true);
+const [foto, setFoto] = useState(null); // índice de la foto abierta en el visor
+// Sus fotos personales: solo las que de verdad existan en public/img/galeria/<id>/
+const fotos = useFotos(galeriaDe(npcId));
 const estado = g.comunidad[npcId];
 const rol = ROLES[npc.rol] || ROLES.vecino;
 const sospechoso = npc.rol === "bot" || npc.rol === "villano";
@@ -2209,14 +2232,17 @@ const reportada = g.cuentasRep.includes(npcId);
 const susCasos = g.liberados.filter((id) => CASOS.find((c) => c.id === id)?.autorId === npcId).reverse();
 const susDanos = g.postsFam.filter((x) => x.npc === npcId).reverse();
 const susHist = g.historias.filter((h) => h.npc === npcId && (h.expiraEn > 0 || h.tipo === "amb" || h.tipo === "dano"));
-const nPosts = npcId === "sombra" ? g.postsOscuros.length : (p.posts || 0) + susDanos.length;
+const nPosts = npcId === "sombra" ? g.postsOscuros.length : (p.posts || 0) + susDanos.length + fotos.length;
 const senales = senalesDe(npcId, g);
 const col = { ok: "#059669", tibio: "#b45309", mal: "#b91c1c" };
 const bg = { ok: "#f0fdf4", tibio: "#fffbeb", mal: "#fef2f2" };
 const ico = { ok: "✅", tibio: "⚠️", mal: "🚩" };
 const malas = senales.filter((s) => s.nivel === "mal").length;
 return (
-<div className="absolute inset-0 z-50 flex flex-col bg-white overflow-y-auto">
+// El envoltorio NO hace scroll: así el visor de fotos, que es su hermano, se
+// ancla a la pantalla y no al contenido desplazado.
+<div className="absolute inset-0 z-50 bg-white">
+<div className="w-full h-full flex flex-col overflow-y-auto">
 <div className="flex items-center gap-2 px-3 py-2.5 sticky top-0 z-10 bg-white border-b" style={{ borderColor: "#f3f4f6" }}>
 <button onClick={cerrar} className="text-xl px-1 text-gray-700" aria-label="volver">←</button>
 <span className="text-sm font-black">@{npc.handle}</span>
@@ -2303,7 +2329,7 @@ return (
 )}
 <div className="px-4 mt-5 pb-8">
 <div className="text-sm font-black mb-2">{t.perfPubsTit}</div>
-{susCasos.length === 0 && susDanos.length === 0
+{susCasos.length === 0 && susDanos.length === 0 && fotos.length === 0
 ? <p className="text-xs text-gray-400 italic py-4 text-center">{t.perfSinPosts}</p>
 : (
 <div className="grid grid-cols-3 gap-1">
@@ -2324,9 +2350,41 @@ return (
 </button>
 );
 })}
+{/* Sus fotos personales, las del muro. Van mezcladas con lo demás a
+    propósito: un perfil real es eso — fotos de su vida y, entre ellas,
+    la cadena que reenvió. Y las cuentas falsas también llenan su muro
+    de fotos genéricas para parecer legítimas. */}
+{fotos.map((src, i) => (
+<button key={"f" + i} onClick={() => setFoto(i)} className="relative block" style={{ aspectRatio: "1/1" }}>
+<img src={src} alt="" className="w-full h-full object-cover" />
+</button>
+))}
 </div>
 )}
 </div>
+</div>
+{/* Visor de una foto del muro: se abre al tocarla y se pasa con ‹ ›. El zIndex
+    va en línea porque este proyecto no usa clases arbitrarias de Tailwind
+    (z-[60] no se genera), y sin él el encabezado sticky se pinta encima. */}
+{foto != null && fotos[foto] && (
+<div className="absolute inset-0 flex flex-col" style={{ background: "#000", zIndex: 60 }} onClick={() => setFoto(null)}>
+<div className="flex items-center gap-2 px-3 py-2.5">
+<Avatar id={npcId} size={28} />
+<span className="text-sm font-bold text-white">{npc.handle}</span>
+<span className="text-xs" style={{ color: "#9ca3af" }}>{foto + 1}/{fotos.length}</span>
+<button onClick={() => setFoto(null)} className="ml-auto text-white text-xl px-2" aria-label="cerrar foto">✕</button>
+</div>
+<div className="flex-1 flex items-center justify-center px-3" onClick={(e) => e.stopPropagation()}>
+<img src={fotos[foto]} alt="" className="max-w-full max-h-full object-contain rounded-xl" />
+</div>
+{fotos.length > 1 && (
+<div className="flex justify-between px-6 pb-8 pt-3" onClick={(e) => e.stopPropagation()}>
+<button onClick={() => setFoto((n) => (n - 1 + fotos.length) % fotos.length)} className="text-white text-2xl px-4 py-1">‹</button>
+<button onClick={() => setFoto((n) => (n + 1) % fotos.length)} className="text-white text-2xl px-4 py-1">›</button>
+</div>
+)}
+</div>
+)}
 </div>
 );
 }
