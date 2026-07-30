@@ -21,11 +21,41 @@ const ruta = (carpeta, id) => BASE + "img/" + carpeta + "/" + id + ".jpg";
 // llenan de a poco (1.jpg, luego 2.jpg…) sin declarar nada en el código.
 const GALERIA_MAX = 12;
 const rutaGaleria = (id, i) => BASE + "img/galeria/" + id + "/" + i + ".jpg";
-const galeriaDe = (id) => Array.from({ length: GALERIA_MAX }, (_, i) => rutaGaleria(id, i + 1));
-// Proxies: cualquier id devuelve su ruta sin tener que listarlas una por una, así
-// que los casos que genera la IA en cada partida también pueden tener foto.
+// ─── LINKS (alternativa a bajar los archivos) ────────────────────────────────
+// Si prefieres no descargar nada, pega aquí la URL DIRECTA de la imagen (la que
+// termina en .jpg, no la página donde se ve). Lo que esté en LINKS manda sobre
+// el archivo local, así que se pueden mezclar: unas por link y otras por
+// archivo. Lo que quede vacío sigue buscando en `public/img/`.
+//
+//   LINKS.npcs.carmen     = "https://images.pexels.com/photos/…/abuela.jpg";
+//   LINKS.portadas.medio  = "https://…/redaccion.jpg";
+//   LINKS.casos.c1        = "https://…/banco.jpg";
+//   LINKS.galeria.carmen  = ["https://…/1.jpg", "https://…/2.jpg"];
+//
+// Ojo: con links el juego depende de que ese servidor responda. Si vas a
+// enseñarlo sin internet (la demo de desconectar el WiFi), usa archivos.
+const LINKS = {
+  npcs: {},
+  portadas: {},
+  casos: {},
+  historias: {},
+  galeria: {}, // aquí va un ARRAY por cuenta, no una sola URL
+};
+// La galería: si hay links para esa cuenta se usan esos; si no, se buscan las
+// GALERIA_MAX ranuras numeradas en su carpeta y se muestran las que existan.
+const galeriaDe = (id) => {
+  const links = LINKS.galeria[id];
+  if (Array.isArray(links) && links.length) return links;
+  return Array.from({ length: GALERIA_MAX }, (_, i) => rutaGaleria(id, i + 1));
+};
+// Proxies: cualquier id devuelve su link o, si no lo tiene, su ruta local — sin
+// listarlas una por una, así que los casos que genera la IA también pueden tener
+// foto. Se lee en el momento del acceso, no al arrancar.
 const mapaRutas = (carpeta) => new Proxy({}, {
-  get: (_, id) => (typeof id === "string" && !id.startsWith("_") ? ruta(carpeta, id) : undefined),
+  get: (_, id) => {
+    if (typeof id !== "string" || id.startsWith("_")) return undefined;
+    return LINKS[carpeta]?.[id] || ruta(carpeta, id);
+  },
 });
 const IMG = { npcs: mapaRutas("npcs"), portadas: mapaRutas("portadas"), casos: mapaRutas("casos"), historias: mapaRutas("historias") };
 // Como las rutas existen para TODOS los ids, la mayoría no tendrá archivo hasta
