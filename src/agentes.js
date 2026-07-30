@@ -691,6 +691,58 @@ const GRADIENTES = [
   "linear-gradient(135deg,#7c2d12,#1c1917)", "linear-gradient(135deg,#831843,#111827)",
 ];
 
+// ============================================================================
+//  11) FASE 6 · BETO CRITICA TU CONTRA-PUBLICACIÓN
+// ----------------------------------------------------------------------------
+//  El veredicto (puntuación, nivel, efectos) sigue siendo DETERMINISTA: lo
+//  calcula el juego y el modelo no lo toca. Lo que aporta el LLM es la
+//  explicación concreta de POR QUÉ ESE orden funcionó o falló en ESE caso,
+//  que es donde de verdad se aprende. Una sola petición, solo al publicar.
+// ============================================================================
+export function construirPromptCritica(ctx = {}) {
+  const en = ctx.lang !== "es";
+  const idioma = en
+    ? "LANGUAGE — write every field in ENGLISH, casual and warm, like an older cousin."
+    : "IDIOMA — escribe todos los campos en español mexicano coloquial, como un primo mayor.";
+  const base = en
+    ? "You are Beto, the player's cousin: you have been hunting fake news since 2019 and you teach without lecturing. One short line per field.\n" +
+      "The player built a correction out of blocks, in the order shown in \"orden\". The verdict in \"veredicto\" is ALREADY decided by the game: do not argue with it or change it — explain it.\n" +
+      "Lean on the debunking handbook: open with the FACT (what is read first is what sticks), explain the TRICK, close REINFORCING the fact (truth sandwich); repeating the myth breeds the illusion of truth; mocking whoever believed it triggers the backfire effect.\n" +
+      "Be specific about THIS post and THIS order — no generic advice."
+    : "Eres Beto, el primo del jugador: cazas fakes desde 2019 y enseñas sin sermonear. Una línea corta por campo.\n" +
+      "El jugador armó una corrección con bloques, en el orden que ves en 'orden'. El veredicto de 'veredicto' YA lo decidió el juego: no lo discutas ni lo cambies, explícalo.\n" +
+      "Apóyate en el manual del desmentido: empezar por el HECHO (lo primero que se lee es lo que se queda), explicar la TRAMPA, cerrar REFORZANDO el hecho (sándwich de la verdad); repetir el mito genera la ilusión de verdad; burlarse del que creyó dispara el efecto tiro por la culata.\n" +
+      "Sé concreto con ESTA publicación y ESTE orden, nada de consejos genéricos.";
+  return {
+    system:
+      base + "\n\n" + idioma +
+      "\n\nResponde SOLO con un JSON válido con esta forma exacta:\n" +
+      '{ "acierto": "<1 línea sobre lo que SÍ funcionó, o null si no hubo nada>", ' +
+      '"fallo": "<1 línea sobre el error principal, o null si no hubo>", ' +
+      '"mejora": "<1 línea: el cambio concreto que lo mejoraría>" }\n' +
+      "Sin links. Nada de texto fuera del JSON.\n\n" + idioma,
+    user: JSON.stringify({
+      publicacion_a_corregir: ctx.caso || null,
+      orden: ctx.orden || [],
+      texto_publicado: ctx.texto || "",
+      veredicto: ctx.veredicto || null,
+    }),
+  };
+}
+
+// Deja pasar solo líneas cortas y sin links. Si no queda nada útil, null: el
+// feedback determinista de Beto ya se mostró y basta.
+export function validarCritica(c) {
+  const linea = (v) => {
+    if (typeof v !== "string") return null;
+    const s = v.trim().slice(0, 220);
+    return !s || /https?:\/\//i.test(s) ? null : s;
+  };
+  const acierto = linea(c?.acierto), fallo = linea(c?.fallo), mejora = linea(c?.mejora);
+  if (!acierto && !fallo && !mejora) return null;
+  return { acierto, fallo, mejora };
+}
+
 // Prompt para que el LLM clasifique (Fase 2). Devuelve SOLO la categoría.
 export function construirPromptClasificacion(texto, ctx = {}) {
   return {

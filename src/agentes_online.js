@@ -14,7 +14,7 @@
 //    if (alerta) mostrarAlerta(alerta);  // "sin señal / se agotaron créditos"
 // ============================================================================
 
-import { puente, construirPrompt, construirPromptClasificacion, construirPromptCasos, validarCasoGenerado, validarReaccion } from "./agentes.js";
+import { puente, construirPrompt, construirPromptClasificacion, construirPromptCasos, construirPromptCritica, validarCasoGenerado, validarCritica, validarReaccion } from "./agentes.js";
 
 // 👉 PON AQUÍ la URL de tu Worker tras `wrangler deploy`
 export const PROXY_URL = "https://verified-proxy.miguelgrnova.workers.dev";
@@ -123,6 +123,12 @@ async function generarCasosProxy(n = 4, ctx = {}) {
   return lista.map((c, i) => validarCasoGenerado(c, i)).filter(Boolean);
 }
 
+// Fase 6: Beto explica por qué TU orden de bloques funcionó o no.
+async function criticaProxyReal(ctx = {}) {
+  const { system, user } = construirPromptCritica(ctx);
+  return validarCritica(await pedirAlProxy({ system, user, modo: "critica" }));
+}
+
 // Enciende el puente y engancha la implementación real.
 // (agentes.js llama internamente a puente.impl si existe; ver nota abajo.)
 export function activarLLM() {
@@ -132,6 +138,7 @@ export function activarLLM() {
   puente.implClasificar = clasificarProxyReal; // clasificación de texto libre
   puente.implCombinado = combinadoProxyReal;   // las dos de golpe (Fase 6)
   puente.implCasos = generarCasosProxy;        // publicaciones nuevas (Fase 6)
+  puente.implCritica = criticaProxyReal;       // crítica de tu corrección (Fase 6)
 }
 
 export function desactivarLLM(motivo = "manual") {

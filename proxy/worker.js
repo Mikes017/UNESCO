@@ -189,6 +189,13 @@ export default {
         !salidaSospechosa(c?.beto_es) && !salidaSospechosa(c?.beto_en));
       return new Response(JSON.stringify({ casos: limpios }), { status: 200, headers: cors });
     }
+    // Modo crítica (Fase 6): tres líneas sueltas, no una reacción de NPC.
+    if (modo === "critica") {
+      const linea = (v) => (typeof v === "string" && v.trim() && !salidaSospechosa(v) ? v.trim().slice(0, 240) : null);
+      return new Response(JSON.stringify({
+        acierto: linea(obj?.acierto), fallo: linea(obj?.fallo), mejora: linea(obj?.mejora),
+      }), { status: 200, headers: cors });
+    }
     const limpio = sanear(obj);
     // Modo combinado (Fase 6): la misma respuesta trae la categoría del jugador.
     if (modo === "combinado")

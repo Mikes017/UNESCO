@@ -931,13 +931,35 @@ if (res.tier === "buena") p("✅ Buena corrección: sólida y con fuente. Para q
 }
 return { es: partes.join(" "), en: partes.join(" ") };
 };
+// FASE 6 · Beto explica POR QUÉ ese orden concreto funcionó o falló. El
+// veredicto no se toca: ya lo decidió puntuarContra(). Esto solo lo explica,
+// y llega como una segunda burbuja unos segundos después de la inmediata.
+const criticaContra = async (casoId, seq, res) => {
+if (!puente.implCritica) return;
+try {
+const caso = CASOS.find((c) => c.id === casoId);
+const orden = seq.map((id, i) => (i + 1) + ". " + (BLOQUES.find((b) => b.id === id)?.label[lang] || id));
+const cr = await puente.implCritica({
+lang,
+caso: caso ? { titular: caso.titular[lang], fake: caso.fake } : null,
+orden,
+texto: caso ? armarTexto(seq, caso, lang) : "",
+veredicto: { nivel: res.tier, sandwich: res.sandwich, notas: res.notas.map((n) => n.k) },
+});
+if (!cr) return;
+const txt = [cr.acierto && "✅ " + cr.acierto, cr.fallo && "⚠️ " + cr.fallo, cr.mejora && "👉 " + cr.mejora]
+.filter(Boolean).join("  ");
+setG((s) => ({ ...s, coach: [...s.coach, { de: "beto", txt: { es: txt, en: txt } }] }));
+} catch (e) { /* el feedback determinista ya se mostró */ }
+};
 const contraPublicar = (casoId, seq) => {
+const res = puntuarContra(seq);
+const efectiva = res.tier === "excelente" || res.tier === "buena";
+if (!seq?.length || g.contra[casoId]) return;
 setG((s) => {
 const caso = CASOS.find((c) => c.id === casoId);
 let ng = { ...s };
 if (!seq?.length || ng.contra[casoId]) return ng;
-const res = puntuarContra(seq);
-const efectiva = res.tier === "excelente" || res.tier === "buena";
 ng.contra = { ...ng.contra, [casoId]: efectiva ? "bien" : "mal" };
 ng.misPosts = [...ng.misPosts, { casoId, tier: res.tier, efectiva, t: ng.tick, texto: { es: armarTexto(seq, caso, "es"), en: armarTexto(seq, caso, "en") } }];
 const why = explicarContra(res, "es"); const whyEn = explicarContra(res, "en");
@@ -963,9 +985,9 @@ return ng;
 });
 setSheet(null);
 // FASE 3: los NPCs reaccionan EN VIVO a tu corrección
-const buena = puntuarContra(seq).tier;
-const efectiva = buena === "excelente" || buena === "buena";
 reaccionAgente(efectiva ? "user_corrige_bien" : "user_corrige_mal", { semilla: casoId });
+// FASE 6: y Beto analiza tu combinación concreta
+criticaContra(casoId, seq, res);
 };
 const compartirCaso = (casoId) => {
 setG((s) => {
