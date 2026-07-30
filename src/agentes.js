@@ -618,78 +618,313 @@ export async function reaccionarYClasificar(ctx = {}, opts = {}) {
 //  con el MISMO vocabulario (First Draft + 8P). Si la llamada falla o el modelo
 //  se sale del vocabulario, simplemente no se añade nada y se juega con los
 //  casos escritos a mano. Nunca puede romper la partida.
+//
+//  COHERENCIA (esto es lo que arregla el "perfil que no cuadra con la noticia"):
+//  el modelo NO elige quién publica. Elige un TEMA, y del tema se DEDUCE todo lo
+//  demás: qué cuenta publicaría eso, qué técnica usa, qué tipo de First Draft es
+//  y quién gana (la motivación). Si el modelo se sale de lo plausible para ese
+//  tema, se AJUSTA al tema en vez de tirar el caso. Así el autor, la técnica, la
+//  búsqueda inversa, el detector de IA y la Radiografía hablan todos de la MISMA
+//  noticia.
 // ============================================================================
 export const CUENTAS_FALSAS = ["n0ticias", "boletos", "enfermera", "ovni", "veci", "troll", "fitlife", "futgossip"];
 export const CUENTAS_REALES = ["clima", "medio", "ong"];
-export const TACTICAS_VALIDAS = ["urgencia", "miedo", "fraude", "contexto", "autoridad", "influencer", "conspiracion", "ia_imagen", "satira", "acceso", "odio"];
+
+// Solo estas 4 motivaciones tienen etiqueta en la Radiografía del juego
+// (motivLabel en App.jsx). Si dejáramos pasar las otras 4 de First Draft, el
+// jugador vería el campo "¿quién gana?" vacío.
+export const MOTIVS_JUEGO = ["lucro", "propaganda", "provocar", "pasion"];
+
+// Técnicas que puede llevar un caso FALSO generado. Fuera quedan "satira",
+// "acceso" (son de casos verdaderos) y "genero" (tema delicado: solo lo tratan
+// los casos escritos a mano).
+export const TACTICAS_FAKE = ["urgencia", "miedo", "fraude", "contexto", "autoridad", "influencer", "conspiracion", "ia_imagen", "ia_voz", "deepfake", "odio"];
+export const TACTICAS_VALIDAS = TACTICAS_FAKE; // compat
+
+// ---- El mapa de temas: el corazón de la coherencia ------------------------
+//  fakes/reales · quién publicaría esa noticia (cuentas que ya existen en el juego)
+//  tacticas     · técnicas plausibles para ese tema (la 1ª es la canónica)
+//  motivs       · quién gana con ese tema (el 1º es el canónico)
+//  claves       · palabras para deducir el tema del titular si el modelo falla
+export const TEMAS = {
+  boletos: {
+    emoji: "🎟️", grad: "linear-gradient(135deg,#065f46,#111827)",
+    fakes: ["boletos"], reales: ["medio"],
+    tacticas: ["fraude", "urgencia"], motivs: ["lucro"],
+    quien: { es: "una cuenta de reventa creada esta semana que pide depósitos directos", en: "a resale account created this week asking for direct deposits" },
+    claves: ["boleto", "entrada para", "reventa", "revendedor", "deposita", "deposito", "transferencia", "aparta", "sorteo", "rifa", "cupo limitado",
+      "ticket", "resale", "reseller", "deposit", "wire", "raffle", "giveaway", "limited spots"],
+  },
+  producto: {
+    emoji: "🧴", grad: "linear-gradient(135deg,#831843,#111827)",
+    fakes: ["fitlife"], reales: ["ong"],
+    tacticas: ["influencer", "autoridad"], motivs: ["lucro"],
+    quien: { es: "un influencer con 120k seguidores que vende productos sin poner #publicidad", en: "an influencer with 120k followers selling products without an #ad tag" },
+    claves: ["quema grasa", "quemador", "suplement", "detox", "adelgaz", "crema", "milagro", "codigo", "cupon", "antes y despues", "gotas", "faja",
+      "fat burn", "supplement", "weight loss", "miracle", "promo code", "before and after", "drops"],
+  },
+  salud: {
+    emoji: "💉", grad: "linear-gradient(135deg,#7f1d1d,#1c1917)",
+    fakes: ["enfermera"], reales: ["ong"],
+    tacticas: ["autoridad", "miedo", "conspiracion"], motivs: ["lucro", "propaganda"],
+    quien: { es: "una cuenta anónima que dice ser enfermera, sin cédula ni hospital", en: "an anonymous account claiming to be a nurse, with no license or hospital" },
+    claves: ["vacun", "salud", "hospital", "enfermer", "medic", "doctor", "clinica", "jarabe", "pastilla", "remedio", "contagio", "brote", "sangre",
+      "vaccine", "health", "nurse", "physician", "clinic", "pill", "remedy", "outbreak", "blood"],
+  },
+  futbol: {
+    emoji: "⚽", grad: "linear-gradient(135deg,#4c1d95,#111827)",
+    fakes: ["futgossip"], reales: ["medio"],
+    tacticas: ["contexto", "ia_voz"], motivs: ["provocar", "lucro"],
+    quien: { es: "una cuenta de chismes 'exclusivos' que nunca cita fuentes", en: "an 'exclusive gossip' account that never cites sources" },
+    claves: ["seleccion", "jugador", "capitan", "futbolista", "entrenador", " dt ", "vestidor", "aficion", "fichaje", "arbitro", "alineacion", "penal",
+      "national team", "player", "captain", "coach", "locker room", "fans", "referee", "lineup"],
+  },
+  clima: {
+    emoji: "🌧️", grad: "linear-gradient(135deg,#0c4a6e,#1e293b)",
+    fakes: ["n0ticias"], reales: ["clima"],
+    tacticas: ["miedo", "urgencia", "ia_imagen"], motivs: ["propaganda", "provocar"],
+    quien: { es: "una cuenta que imita a un medio real cambiándole una letra al nombre", en: "an account imitating a real outlet by swapping one letter of its name" },
+    claves: ["lluvia", "tormenta", "inunda", "huracan", "granizo", "clima", "temblor", "sismo", "estadio", "cancela el partido", "alerta meteorologica",
+      "rain", "storm", "flood", "hurricane", "hail", "weather", "earthquake", "stadium", "match cancel"],
+  },
+  servicios: {
+    emoji: "🚱", grad: "linear-gradient(135deg,#1e3a8a,#111827)",
+    fakes: ["veci"], reales: ["clima"],
+    tacticas: ["miedo", "urgencia"], motivs: ["propaganda", "provocar"],
+    quien: { es: "una cuenta de barrio que siempre cita a 'mi primo del gobierno', que nunca tiene nombre", en: "a neighborhood account always quoting 'my cousin in the government', who never has a name" },
+    claves: ["agua", "garrafon", "apagon", "corte de luz", "cortan la", "gas", "transporte", "metro", "camion", "cierre de calles", "toque de queda", "desabasto", "gasolina",
+      "water", "blackout", "power cut", "outage", "transit", "subway", "road closure", "curfew", "shortage", "gas station"],
+  },
+  conspira: {
+    emoji: "🛸", grad: "linear-gradient(135deg,#1e1b4b,#0c0a1f)",
+    fakes: ["ovni"], reales: ["medio"],
+    tacticas: ["conspiracion"], motivs: ["pasion", "propaganda"],
+    quien: { es: "una cuenta de 'lo que no quieren que veas', donde todo es secreto y nada tiene fuente", en: "a 'what they don't want you to see' account, where everything is secret and nothing is sourced" },
+    claves: ["ocultan", "lo esconden", "secreto", "conspir", "ovni", "chip", "elite", "censur", "no quieren que", "antes de que lo borren", "despierten",
+      "hiding it", "cover-up", "secret", "ufo", "they don't want", "wake up", "before they delete"],
+  },
+  odio: {
+    emoji: "🚫", grad: "linear-gradient(135deg,#450a0a,#1c1917)",
+    fakes: ["troll"], reales: ["medio"],
+    tacticas: ["odio"], motivs: ["provocar"],
+    quien: { es: "una cuenta troll de 3 días, sin foto, que solo ataca a un grupo de personas", en: "a 3-day-old troll account, no photo, that only attacks one group of people" },
+    claves: ["no merecen", "correrlos", "fuera los", "esa gente", "los del sur", "migrant", "no deberian dejar entrar", "ni deberian",
+      "don't deserve", "run them out", "kick them out", "those people", "southerners", "shouldn't be allowed"],
+  },
+  noticia: {
+    emoji: "🗞️", grad: "linear-gradient(135deg,#111827,#7f1d1d)",
+    fakes: ["n0ticias"], reales: ["medio"],
+    tacticas: ["urgencia", "contexto", "ia_imagen", "deepfake"], motivs: ["propaganda", "provocar"],
+    quien: { es: "una cuenta que imita a un medio real cambiándole una letra al nombre", en: "an account imitating a real outlet by swapping one letter of its name" },
+    claves: ["ultima hora", "urgente", "exclusiva", "filtrado", "confirmado", "alcalde", "gobierno", "declara", "video del", "audio del", "comunicado",
+      "breaking", "urgent", "exclusive", "leaked", "confirmed", "mayor", "government", "declares", "statement"],
+  },
+};
+
+// Tipos de First Draft plausibles por técnica (el 1º es el canónico).
+const TIPOS_POR_TACTICA = {
+  fraude: ["fabricado", "enganoso"], influencer: ["enganoso", "conexion"], autoridad: ["fabricado", "enganoso"],
+  urgencia: ["fabricado", "contexto"], miedo: ["fabricado", "contexto"],
+  contexto: ["contexto", "conexion"], conspiracion: ["contexto", "conexion"],
+  ia_imagen: ["manipulado", "fabricado"], ia_voz: ["manipulado", "fabricado"], deepfake: ["manipulado", "fabricado"],
+  odio: ["odio"],
+};
+
+// Qué dice la búsqueda inversa según la técnica: la herramienta tiene que
+// hablar del engaño concreto, no dar una frase comodín.
+const IMAGEN_POR_TACTICA = {
+  fraude: { es: "La 'captura' del pago circula idéntica en decenas de cuentas de estafa.", en: "The payment 'screenshot' circulates identically across dozens of scam accounts." },
+  influencer: { es: "El 'antes y después' es de otra persona, y está editado.", en: "The 'before and after' is a different person, and it is edited." },
+  autoridad: { es: "La foto del 'especialista' sale de un banco de imágenes de stock.", en: "The 'specialist' photo comes from a stock image bank." },
+  contexto: { es: "Búsqueda inversa: la foto es real, pero es de otro año y de otro lugar.", en: "Reverse search: the photo is real, but from another year and another place." },
+  conspiracion: { es: "Búsqueda inversa: es un video viejo de otro evento, reciclado con historia nueva.", en: "Reverse search: it is an old video of another event, recycled with a new story." },
+  urgencia: { es: "El mismo aviso circula desde hace años: solo le cambian la fecha y el lugar.", en: "The same warning has circulated for years: only the date and place change." },
+  miedo: { es: "El mismo aviso circula desde hace años en otras ciudades: solo cambia el lugar.", en: "The same warning has circulated for years in other cities: only the place changes." },
+  ia_imagen: { es: "No aparece en ningún medio. La 'foto exclusiva' no existe fuera de esta cuenta.", en: "Not in any outlet. The 'exclusive photo' does not exist outside this account." },
+  ia_voz: { es: "La imagen es una portada genérica. La clave está en el audio.", en: "The image is a generic cover. The key is in the audio." },
+  deepfake: { es: "El video no existe en ninguna fuente oficial ni en ningún medio real.", en: "The video does not exist in any official source or real outlet." },
+  odio: { es: "No es una opinión sobre el tema: ataca a personas por lo que SON. Eso es discurso de odio.", en: "This is not an opinion about the topic: it attacks people for what they ARE. That is hate speech." },
+};
+
+// Y qué dice el detector de IA. Solo las técnicas de IA dan positivo: si diera
+// positivo en todo, el jugador aprendería a apretar el botón sin pensar.
+const IA_POR_TACTICA = {
+  ia_imagen: { mal: true, txt: { es: "🤖 SEÑALES DE IA: texto de los letreros ilegible, manos y multitudes derretidas, reflejos imposibles.", en: "🤖 AI SIGNALS: illegible sign text, melted hands and crowds, impossible reflections." } },
+  ia_voz: { mal: true, txt: { es: "🤖 SEÑALES DE VOZ CLONADA: no hay respiraciones, la entonación es plana y las pausas son antinaturales.", en: "🤖 VOICE-CLONE SIGNALS: no breaths, flat intonation, unnatural pauses." } },
+  deepfake: { mal: true, txt: { es: "🤖 DEEPFAKE: parpadeo antinatural, labios fuera de sincronía y bordes borrosos en la cara.", en: "🤖 DEEPFAKE: unnatural blinking, out-of-sync lips, blurry edges around the face." } },
+};
+
+// Señales de cada técnica en el propio texto del post. Sirven para no sortear la
+// técnica al azar entre las del tema: un post que pide un depósito es "fraude", y
+// uno que presume un video es "deepfake". Importa porque de la técnica salen la
+// búsqueda inversa y el detector de IA: si un post que nunca menciona una imagen
+// recibiera "ia_imagen", el detector daría positivo sobre una foto inexistente.
+const SENALES_TACTICA = {
+  fraude: ["deposit", "transferencia", "aparta", "aparto", "te lo guardo", "pago", "paga ", "clabe", "wire", "payment", "pay ", "hold it for you"],
+  urgencia: ["urgente", "antes de que", "ultimas horas", "ultimos", "hoy mismo", "se acaba", "cupo", "corre", "ahora o nunca",
+    "urgent", "before it", "last hours", "last ", "today only", "running out", "hurry"],
+  miedo: ["cuidado", "peligro", "no salgan", "guarden", "abastez", "se va a acabar", "riesgo", "alerta",
+    "careful", "danger", "do not go", "stock up", "will run out", "risk", "alert"],
+  autoridad: ["soy enfermera", "soy doctor", "especialista", "como medico", "trabajo en el hospital",
+    "i am a nurse", "i am a doctor", "specialist", "as a doctor", "i work at the hospital"],
+  influencer: ["codigo", "cupon", "link en mi", "mi descuento", "confien en mi", "antes y despues",
+    "promo code", "coupon", "link in my", "my discount", "trust me", "before and after"],
+  contexto: ["miren la foto", "aqui la prueba", "esta foto", "la imagen lo prueba", "asi quedo",
+    "look at the photo", "here is the proof", "this photo", "the image proves"],
+  conspiracion: ["ocultan", "lo esconden", "no quieren que", "antes de que lo borren", "despierten", "la verdad que",
+    "hiding", "cover up", "they don't want", "before they delete", "wake up", "the truth they"],
+  ia_imagen: ["foto exclusiva", "miren como quedo", "imagenes del", "asi se ve", "fotos del",
+    "exclusive photo", "look how it looks", "images of", "photos of"],
+  ia_voz: ["audio", "grabacion", "se le oye", "nota de voz", "lo dijo en la llamada",
+    "recording", "you can hear", "voice note", "said on the call"],
+  deepfake: ["video", "se ve al", "aparece diciendo", "lo grabaron diciendo", "en el clip",
+    "caught on video", "appears saying", "in the clip"],
+  odio: ["no merecen", "esa gente", "fuera los", "correrlos", "no deberian",
+    "don't deserve", "those people", "kick them out", "run them out", "shouldn't be"],
+};
+
+// minúsculas y sin acentos: así "vacunación" y "vacunacion" cuentan igual
+const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+// De las técnicas plausibles para el tema, la que el propio texto delata. La
+// canónica del tema (la 1ª) entra con un indicio de ventaja: es la apuesta segura,
+// así que otra técnica solo se la quita si el texto la delata más. Y si el texto
+// no delata nada, gana ella, que nunca promete una imagen ni un audio que el post
+// no tenga.
+function tacticaDelTexto(tema, texto) {
+  const senales = (tac) => (SENALES_TACTICA[tac] || []).reduce((n, k) => n + (texto.includes(norm(k)) ? 1 : 0), 0);
+  let mejor = tema.tacticas[0], mejorPts = senales(mejor) + 1;
+  for (const tac of tema.tacticas.slice(1)) {
+    const pts = senales(tac);
+    if (pts > mejorPts) { mejor = tac; mejorPts = pts; }
+  }
+  return mejor;
+}
+
+// Deduce el tema. Manda el TITULAR, no la etiqueta del modelo: si el modelo dice
+// "clima" pero el post vende quemagrasa, el post gana. Solo cuando el titular no
+// dice nada claro se respeta lo que declaró el modelo; y si tampoco hay eso, el
+// tema es "noticia" (el genérico, el único que no promete nada raro).
+export function temaDeCaso(c) {
+  const texto = " " + norm((c?.titular_es || "") + " ~ " + (c?.titular_en || "")) + " ";
+  const puntos = (id) => TEMAS[id].claves.reduce((n, k) => n + (texto.includes(norm(k)) ? 1 : 0), 0);
+  let mejor = null, mejorPts = 0;
+  for (const id of Object.keys(TEMAS)) {
+    const pts = puntos(id);
+    if (pts > mejorPts) { mejor = id; mejorPts = pts; }
+  }
+  const declarado = c && TEMAS[c.tema] ? c.tema : null;
+  // El titular solo desmiente al modelo cuando habla claro (2+ pistas), o cuando
+  // el tema declarado no tiene NINGUNA pista en el texto. Un empate lo gana el
+  // modelo: él sí sabe qué quiso escribir.
+  if (declarado) {
+    const suyos = puntos(declarado);
+    if (suyos >= mejorPts) return declarado;
+    if (mejorPts >= 2 || suyos === 0) return mejor;
+    return declarado;
+  }
+  return mejor || "noticia";
+}
 
 export function construirPromptCasos(n = 4, ctx = {}) {
   const en = ctx.lang !== "es";
+  const temas = Object.entries(TEMAS)
+    .map(([id, tm]) => "· " + id + " → lo publicaría " + tm.quien.es + ". Técnicas: " + tm.tacticas.join(", ") + ".")
+    .join("\n");
   return {
     system:
       "Diseñas casos para VERIFIED, un juego de alfabetización mediática (UNESCO) para adolescentes, ambientado en un barrio mexicano durante un mundial de fútbol.\n" +
       "Cada caso es UNA publicación de redes sociales que el jugador deberá juzgar. Mézclalos: la mayoría desinformación, pero incluye 1 verdadera y aburrida (para que no baste con desconfiar de todo).\n" +
       "Reglas: nada de política real, ni personas reales, ni marcas reales, ni enfermedades graves tratadas a la ligera. Nada de links. Tono creíble, cotidiano, latinoamericano.\n" +
       "El campo 'beto' es la pista del primo experto: explica en 1 línea POR QUÉ engaña (o por qué es limpia), señalando la pista concreta.\n\n" +
+      "IMPORTANTÍSIMO — la cuenta que publica NO la eliges tú: la asigna el juego a partir del 'tema'. Elige el tema PRIMERO y escribe el post con la voz de esa cuenta, hablando de ESE asunto. Temas disponibles:\n" +
+      temas + "\n" +
+      "La 'tactica' y la 'motiv' tienen que ser las de ESE tema y ESE texto: si el post pide dinero es lucro, si siembra pánico es propaganda o provocar, si es 'creo en lo oculto' es pasion.\n\n" +
       "Responde SOLO con un JSON válido: { \"casos\": [ {...} x" + n + " ] }, cada uno con esta forma exacta:\n" +
-      '{ "titular_es": "<texto del post, máx 140>", "titular_en": "<same in English, max 140>", ' +
+      '{ "tema": <uno de ' + JSON.stringify(Object.keys(TEMAS)) + ">, " +
+      '"titular_es": "<texto del post, máx 140>", "titular_en": "<same in English, max 140>", ' +
       '"fake": true|false, ' +
       '"tipos": <array de 1-2 de ' + JSON.stringify(TIPOS_FD) + ", [] si no es fake>, " +
-      '"motiv": <una de ' + JSON.stringify(MOTIVACIONES_8P) + ", null si no es fake>, " +
-      '"tactica": <una de ' + JSON.stringify(TACTICAS_VALIDAS) + ">, " +
+      '"motiv": <una de ' + JSON.stringify(MOTIVS_JUEGO) + ", null si no es fake>, " +
+      '"tactica": <una de ' + JSON.stringify(TACTICAS_FAKE) + ", null si no es fake>, " +
       '"emoji": "<1 emoji que ilustre el tema>", ' +
       '"beto_es": "<pista, máx 120>", "beto_en": "<hint, max 120>" }\n' +
       "No repitas temas entre casos. No agregues texto fuera del JSON. Usa etiquetas SOLO de esas listas.",
     user: JSON.stringify({
       cuantos: n,
       idioma_principal: en ? "en" : "es",
+      temas_disponibles: Object.keys(TEMAS),
       evitar_temas: ctx.evitar || [],
     }),
   };
 }
 
-// Convierte un caso crudo del modelo al formato del juego. Devuelve null si se
-// salió del vocabulario: preferimos un caso menos a un caso inconsistente.
+// Convierte un caso crudo del modelo al formato del juego. Devuelve null solo si
+// falta el texto (sin titular no hay caso). Todo lo demás se AJUSTA al tema:
+// preferimos un caso coherente a un caso menos.
 export function validarCasoGenerado(c, i = 0) {
   if (!c || typeof c.titular_es !== "string" || typeof c.titular_en !== "string") return null;
   const es = c.titular_es.trim().slice(0, 180);
   const en = c.titular_en.trim().slice(0, 180);
   if (!es || !en) return null;
   if (/https?:\/\//i.test(es + en)) return null; // sin links salientes
-  const fake = c.fake === true;
-  const tipos = Array.isArray(c.tipos) ? c.tipos.filter((x) => TIPOS_FD.includes(x)).slice(0, 2) : [];
-  if (fake && !tipos.length) return null;        // un fake sin diagnóstico no enseña
-  const motiv = MOTIVACIONES_8P.includes(c.motiv) ? c.motiv : null;
-  if (fake && !motiv) return null;
-  const tactica = TACTICAS_VALIDAS.includes(c.tactica) ? c.tactica : null;
-  if (fake && !tactica) return null;
   const beS = typeof c.beto_es === "string" ? c.beto_es.trim().slice(0, 160) : "";
   const beE = typeof c.beto_en === "string" ? c.beto_en.trim().slice(0, 160) : "";
   if (!beS || !beE) return null;
-  const cuentas = fake ? CUENTAS_FALSAS : CUENTAS_REALES;
-  const emoji = typeof c.emoji === "string" && c.emoji.trim() ? c.emoji.trim().slice(0, 4) : (fake ? "📣" : "📰");
+
+  const fake = c.fake === true;
+  const temaId = temaDeCaso(c);
+  const tema = TEMAS[temaId];
+  const pick = (arr, sal) => arr[hash(sal + es + i) % arr.length];
+
+  // 1) Técnica: la del modelo solo si es plausible PARA ESTE TEMA; si no, la que
+  //    delata el propio texto (nunca una al azar: de la técnica salen la búsqueda
+  //    inversa y el detector de IA, y tienen que hablar de ESTE post).
+  const texto = " " + norm(es + " ~ " + en) + " ";
+  const tactica = !fake ? null
+    : (TACTICAS_FAKE.includes(c.tactica) && tema.tacticas.includes(c.tactica)) ? c.tactica
+    : tacticaDelTexto(tema, texto);
+
+  // 2) Tipos de First Draft: se conservan los del modelo que embonen con la
+  //    técnica; si ninguno embona, los canónicos de la técnica. Esto importa
+  //    doble porque el reporte solo procede si el jugador acierta el tipo.
+  const plausibles = TIPOS_POR_TACTICA[tactica] || [];
+  const delModelo = Array.isArray(c.tipos) ? c.tipos.filter((x) => plausibles.includes(x)) : [];
+  const tipos = !fake ? [] : (delModelo.length ? delModelo.slice(0, 2) : plausibles.slice(0, 2));
+
+  // 3) Autor: SIEMPRE la cuenta que publicaría este tema (nunca al azar).
+  const cuentas = fake ? tema.fakes : (tema.reales.length ? tema.reales : CUENTAS_REALES);
+  const autorId = pick(cuentas, "autor");
+  // La cuenta que imita a un medio real es, por definición, contenido impostor.
+  if (fake && autorId === "n0ticias" && !tipos.includes("impostor")) {
+    if (tipos.length >= 2) tipos[1] = "impostor"; else tipos.push("impostor");
+  }
+
+  // 4) Motivación (el "¿quién gana?" de la Radiografía): la del modelo solo si
+  //    el juego sabe dibujarla Y cuadra con el tema; si no, la canónica del tema.
+  const motiv = !fake ? null
+    : (MOTIVS_JUEGO.includes(c.motiv) && tema.motivs.includes(c.motiv)) ? c.motiv
+    : tema.motivs[0];
+
+  const emoji = typeof c.emoji === "string" && c.emoji.trim() ? c.emoji.trim().slice(0, 4) : tema.emoji;
+  const ia = (fake && IA_POR_TACTICA[tactica]) || { mal: false, txt: { es: "Sin señales claras de IA.", en: "No clear AI signals." } };
   return {
     id: "gen" + (i + 1),
     generado: true,
+    tema: temaId,
     fake,
     ...(fake ? { tacticaId: tactica, tipos, motiv } : {}),
-    autorId: cuentas[hash("autor" + es + i) % cuentas.length],
+    autorId,
     img: emoji,
-    grad: GRADIENTES[hash("grad" + es + i) % GRADIENTES.length],
+    grad: tema.grad,
     titular: { es, en },
-    imagenRes: { mal: fake, txt: fake
-      ? { es: "Búsqueda inversa: la imagen ya circulaba antes, en otro contexto.", en: "Reverse search: the image was already circulating before, in another context." }
-      : { es: "Imagen original, sin coincidencias previas.", en: "Original image, no earlier matches." } },
-    iaRes: { mal: false, txt: { es: "Sin señales claras de IA.", en: "No clear AI signals." } },
+    imagenRes: fake
+      ? { mal: true, txt: IMAGEN_POR_TACTICA[tactica] || IMAGEN_POR_TACTICA.contexto }
+      : { mal: false, txt: { es: "Imagen original de la cuenta, sin coincidencias previas.", en: "The account's own original image, no earlier matches." } },
+    iaRes: ia,
     betoTip: { es: beS, en: beE },
   };
 }
-
-const GRADIENTES = [
-  "linear-gradient(135deg,#111827,#7f1d1d)", "linear-gradient(135deg,#065f46,#111827)",
-  "linear-gradient(135deg,#0c4a6e,#1e293b)", "linear-gradient(135deg,#4c1d95,#1e1b4b)",
-  "linear-gradient(135deg,#7c2d12,#1c1917)", "linear-gradient(135deg,#831843,#111827)",
-];
 
 // ============================================================================
 //  11) FASE 6 · BETO CRITICA TU CONTRA-PUBLICACIÓN
