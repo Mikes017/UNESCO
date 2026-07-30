@@ -15,6 +15,9 @@ dist-ssr
 # Claude Code local config
 .claude
 
+# Snapshot viejo de entrega, ya superado por src/
+actualizacion/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
