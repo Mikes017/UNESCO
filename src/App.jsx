@@ -1669,7 +1669,9 @@ else setPantalla(app);
 {pantalla === "spectra" && g.modoOscuro && <Spectra t={t} lang={lang} g={g} elegir={selMision} publicar={publicarMision} traicionar={traicionar} />}
 {pantalla === "news" && <Noticias t={t} lang={lang} g={g} />}
 {sheet && <Sheets t={t} lang={lang} g={g} nivel={nivel} sheet={sheet} setSheet={setSheet} reportar={reportarCaso} compartir={compartirCaso} reenviar={reenviarBeto} contraPublicar={contraPublicar} />}
-{histActual && <VisorHistoria t={t} lang={lang} h={histActual} cerrar={() => setHistoria(null)} responder={responderHistoria} />}
+{/* Del perfil se entra a una historia y de la historia se entra al perfil: en
+    los dos sentidos se cierra lo anterior, para no apilar pantallas encima. */}
+{histActual && <VisorHistoria t={t} lang={lang} h={histActual} cerrar={() => setHistoria(null)} responder={responderHistoria} verPerfil={(npcId) => { setHistoria(null); setPerfil(npcId); }} />}
 {perfil && <Perfil t={t} lang={lang} npcId={perfil} g={g} cerrar={() => setPerfil(null)} setSheet={setSheet}
   verHistoria={(hid) => { setPerfil(null); setHistoria(hid); setG((s) => ({ ...s, historias: s.historias.map((h) => (h.id === hid ? { ...h, vista: true } : h)) })); }}
   seguir={seguir} reportarCuenta={reportarCuenta} />}
@@ -2238,7 +2240,7 @@ return (
 </div>
 );
 }
-function VisorHistoria({ t, lang, h, cerrar, responder }) {
+function VisorHistoria({ t, lang, h, cerrar, responder, verPerfil }) {
 const foto = IMG.historias[h.id];
 const [hayFoto, falloFoto] = useFoto(foto);
 return (
@@ -2250,8 +2252,14 @@ return (
 </div>
 </div>
 <div className="flex items-center gap-2 px-3 py-2">
+{/* Tocar el avatar o el @ abre el perfil, como en Instagram. Aquí es donde más
+    se necesita: la historia de riesgo es justo el momento en que hay que ir a
+    ver QUIÉN la publica antes de creerle. Avatar sin onClick es un <span>, así
+    que envolverlo en el botón no anida botones. */}
+<button onClick={() => verPerfil(h.npc)} className="flex items-center gap-2" aria-label={t.perfRevisa + ": " + NPCS[h.npc].handle}>
 <Avatar id={h.npc} size={32} />
 <span className="text-sm font-bold text-white">{NPCS[h.npc].handle}</span>
+</button>
 {h.tipo === "riesgo" && <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "#7f1d1d", color: "#fca5a5" }}>⚠️</span>}
 {h.tipo === "dano" && <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "#4c0519", color: "#fda4af" }}>💔 {t.histDano}</span>}
 <button onClick={cerrar} className="ml-auto text-white text-xl px-2">✕</button>
