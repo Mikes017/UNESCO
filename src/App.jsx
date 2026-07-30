@@ -212,6 +212,134 @@ fuente: { es: "Cuenta oficial del municipio: 'El video es FALSO. No existe ning�
 panico: { npc: "chuy", texto: { es: "Ya cerré el taller por lo del toque de queda… ¿o es mentira? Ya no sé qué creer 😩", en: "I closed the shop over the curfew… or is it fake? I do not know what to believe anymore 😩" } },
 cons: { npc: "chuy", titular: { es: "🔥 Turba enardecida por el video falso destroza una caseta y agrede a un inocente antes de la final", en: "🔥 Mob enraged by the fake video wrecks a booth and attacks an innocent man before the final" }, real: { es: "Real y trágico: rumores por mensajería han provocado linchamientos de personas inocentes en varios países.", en: "Real and tragic: messaging-app rumors have triggered lynchings of innocent people in several countries." }, afecta: "chuy" } },
 };
+// ─── CONSECUENCIAS EN LA FAMILIA ──────────────────────────────────────────────
+// Si no le contestas al grupo, la duda no se queda quieta: se vuelve decisión, y
+// a esa persona le PASA algo. Te enteras por el mismo WhatsUp, que es donde de
+// verdad dolería. Cada entrada está atada a la TÉCNICA del engaño, así que la
+// consecuencia siempre habla de ESA desinformación y no de una genérica.
+//  urge    · la persona insiste a la mitad del plazo (te da una segunda chance)
+//  cae     · lo que ella misma cuenta que hizo, al vencerse el plazo
+//  avisa   · cómo te enteras del daño: otro del grupo lo cuenta  ({n} = su nombre)
+//  post    · lo que ELLA publica en Instagrama: así te enteras viendo el feed
+//  titular · lo recoge el noticiero  ·  real · el caso documentado que lo ancla
+const VENCE_PREGUNTA = 30; // ticks que aguanta una pregunta del grupo sin respuesta
+const AVISA_PREGUNTA = 15; // a la mitad del plazo, insisten
+const CONSEC_FAMILIA = {
+fraude: {
+urge: { es: "¿Mijo? Nada más dime si deposito o no, se me va el cupo 😖", en: "Sweetie? Just tell me if I deposit or not, my spot is going 😖" },
+cae: { es: "*ya deposité por los boletos… y la cuenta desapareció* 💔", en: "*I already deposited for the tickets… and the account vanished* 💔" },
+avisa: { es: "Familia, a {n} le sacaron la quincena completa: depositó por unos boletos que nunca llegaron 💔", en: "Family, {n} lost a whole paycheck: paid for tickets that never arrived 💔" },
+hist: { es: "Depositó. Ya no está la cuenta 💔", en: "Paid. The account is gone 💔" },
+post: { es: "No sé cómo decirlo: deposité por los boletos y la cuenta ya no existe. Era la quincena completa 💔", en: "I don't know how to say it: I paid for the tickets and the account is gone. That was a whole paycheck 💔" },
+titular: { es: "💸 Estafa de reventa deja sin ahorros a decenas de familias antes de la final", en: "💸 Resale scam wipes out dozens of families' savings before the final" },
+real: { es: "Real: los fraudes de reventa se llevan los ahorros de miles de personas en cada evento grande. Nadie regala boletos.", en: "Real: resale scams take thousands of people's savings at every major event. Nobody gives tickets away." } },
+urgencia: {
+urge: { es: "¿Sigues ahí? Voy al banco antes de que cierren, no me tardo 😟", en: "You still there? I'm going to the bank before it closes 😟" },
+cae: { es: "*hice cuatro horas de fila y saqué todos mis ahorros* 😰", en: "*I stood in line four hours and pulled out all my savings* 😰" },
+avisa: { es: "¿Ya supieron lo de {n}? Sacó TODO del banco por la cadena y se lo robaron en el camión 💔", en: "Did you hear about {n}? Took EVERYTHING out of the bank over that chain and got robbed on the bus 💔" },
+hist: { es: "Saqué todo. Ya no traigo nada 😰", en: "Took it all out. Now I have nothing 😰" },
+post: { es: "Saqué todos mis ahorros del banco por una cadena. Me los robaron en el camión. El banco nunca quebró 💔", en: "I pulled all my savings out over a chain message. Got robbed on the bus. The bank never collapsed 💔" },
+titular: { es: "🏦 Filas y robos afuera de los bancos por un rumor de colapso que nunca ocurrió", en: "🏦 Lines and robberies outside banks over a collapse rumor that never happened" },
+real: { es: "Real: un rumor de quiebra puede provocar una corrida bancaria de verdad. El pánico se vuelve el hecho.", en: "Real: a bankruptcy rumor can trigger an actual bank run. The panic becomes the fact." } },
+miedo: {
+urge: { es: "Nadie me contesta… voy a comprar garrafones por si acaso 😔", en: "Nobody is answering… I'm going to buy water jugs just in case 😔" },
+cae: { es: "*gasté la despensa del mes en garrafones, ya no caben en la cocina* 😞", en: "*I blew the month's grocery money on water jugs, they don't fit in the kitchen* 😞" },
+avisa: { es: "{n} se peleó en el súper por los últimos garrafones… y el agua nunca se cortó 💔", en: "{n} got into a fight at the store over the last water jugs… and the water was never cut 💔" },
+hist: { es: "12 garrafones. Nunca cortaron el agua 😞", en: "12 water jugs. They never cut the water 😞" },
+post: { es: "Mi cocina llena de garrafones y el agua nunca se cortó. Ahí se fue la despensa del mes 😞", en: "My kitchen is full of water jugs and the water was never cut. There went the month's groceries 😞" },
+titular: { es: "🚱 Rumor de corte de agua vacía los supermercados: dos personas heridas en la rebatinga", en: "🚱 Water-cut rumor empties supermarkets: two people injured in the scramble" },
+real: { es: "Real: los rumores de desabasto han vaciado tiendas y dejado gente herida, mientras el servicio seguía normal.", en: "Real: shortage rumors have emptied stores and left people injured, while service ran normally." } },
+autoridad: {
+urge: { es: "¿Me lees? Ya no sé si seguir con el tratamiento 😞", en: "Are you reading me? I don't know whether to keep taking the treatment 😞" },
+cae: { es: "*le hice caso a la enfermera de internet y suspendí el tratamiento* 😔", en: "*I listened to the internet nurse and stopped the treatment* 😔" },
+avisa: { es: "Mala noticia: {n} dejó el tratamiento por lo que dijo esa 'enfermera' y está en el hospital 💔", en: "Bad news: {n} stopped the treatment over what that 'nurse' said and is in the hospital 💔" },
+hist: { es: "Desde el hospital 💔", en: "From the hospital 💔" },
+post: { es: "Escribo desde el hospital. Dejé mi tratamiento por un video de una «enfermera» que ni nombre tenía 💔", en: "Writing from the hospital. I dropped my treatment over a video by a «nurse» with no name 💔" },
+titular: { es: "🚑 Personas hospitalizadas por abandonar su tratamiento tras el video de una 'enfermera' anónima", en: "🚑 People hospitalized after dropping treatment over an anonymous 'nurse' video" },
+real: { es: "Real: en 2020 un rumor de 'cura milagrosa' causó más de 700 muertes por metanol en un solo país. La autoridad real tiene nombre verificable.", en: "Real: in 2020 a 'miracle cure' rumor caused 700+ methanol deaths in a single country. Real authority has a verifiable name." } },
+influencer: {
+urge: { es: "¿Lo pido o no? Ya se acaba el código y luego sale carísimo 😅", en: "Do I order it or not? The code is expiring and then it gets pricey 😅" },
+cae: { es: "*pedí tres frascos del quemador, la 'nutrióloga' se veía profesional* 💪", en: "*I ordered three jars of the burner, the 'nutritionist' looked professional* 💪" },
+avisa: { es: "{n} lleva dos días en la clínica por las pastillas del influencer. Nadie sabe qué traían 💔", en: "{n} has been at the clinic two days over the influencer's pills. Nobody knows what was in them 💔" },
+hist: { es: "Segundo día en la clínica 💔", en: "Second day at the clinic 💔" },
+post: { es: "Dos días en la clínica por las pastillas que promocionaba el influencer. Nadie sabe qué traían 💔", en: "Two days at the clinic over the pills that influencer promoted. Nobody knows what was in them 💔" },
+titular: { es: "🧴 Suplemento 'milagro' promovido por influencers manda a urgencias a varias personas", en: "🧴 Influencer-promoted 'miracle' supplement sends several people to the ER" },
+real: { es: "Real: los remedios milagro virales han causado intoxicaciones masivas. Si no trae #publicidad, alguien está pagando igual.", en: "Real: viral miracle cures have caused mass poisonings. If there's no #ad tag, someone is still paying." } },
+contexto: {
+urge: { es: "¿Entonces la foto es cierta o no? Ya la mandé al grupo de la cuadra 😕", en: "So is the photo real or not? I already sent it to the block group 😕" },
+cae: { es: "*la reenvié a todos: si la foto está ahí, ha de ser cierto* 😤", en: "*I forwarded it to everyone: if the photo is there, it must be true* 😤" },
+avisa: { es: "{n} acabó peleando en la calle con don Efraín por esa foto… y la foto era de hace tres años 💔", en: "{n} ended up fighting don Efraín in the street over that photo… and the photo was three years old 💔" },
+hist: { es: "La foto era de hace 3 años. Ya me peleé 💔", en: "The photo was 3 years old. I already fought 💔" },
+post: { es: "Me peleé en la calle con don Efraín por una foto… que era de hace tres años. Qué vergüenza 💔", en: "I fought don Efraín in the street over a photo… that was three years old. I feel awful 💔" },
+titular: { es: "✂️ Una foto real de otro año desata pleitos entre vecinos que la creyeron de ayer", en: "✂️ A real photo from another year sparks fights among neighbors who thought it was yesterday's" },
+real: { es: "Real: foto real + historia falsa es la mentira más barata y la más común. Diez segundos de búsqueda inversa la tumban.", en: "Real: real photo + false story is the cheapest and most common lie. Ten seconds of reverse search kills it." } },
+conspiracion: {
+urge: { es: "Nadie me explica nada… entonces sí lo están ocultando, ¿no? 🤔", en: "Nobody explains anything… so they ARE hiding it, right? 🤔" },
+cae: { es: "*ya no le creo a nadie: ni al doctor, ni al clima, ni a ustedes* 🤷", en: "*I don't believe anyone anymore: not the doctor, not the weather, not you* 🤷" },
+avisa: { es: "Ojo con {n}: canceló la cita del hospital porque dice que 'todos mienten' 💔", en: "Heads up about {n}: cancelled the hospital appointment because 'everyone lies' 💔" },
+hist: { es: "Ya no le creo a nadie 🤷", en: "I don’t believe anyone anymore 🤷" },
+post: { es: "Ya no le creo a nadie: ni al doctor, ni al clima, ni a mi familia. Cancelé mi cita del hospital 🤷", en: "I don't believe anyone anymore: not the doctor, not the weather, not my family. I cancelled my hospital appointment 🤷" },
+titular: { es: "🛸 Crece la desconfianza: vecinos dejan de creerle hasta a los rescatistas y a los médicos", en: "🛸 Distrust grows: neighbors stop believing even rescuers and doctors" },
+real: { es: "Real: sembrar desconfianza total es una táctica documentada para desmovilizar comunidades. El objetivo no es que creas la mentira: es que no creas nada.", en: "Real: seeding total distrust is a documented tactic to demobilize communities. The goal isn't that you believe the lie: it's that you believe nothing." } },
+ia_imagen: {
+urge: { es: "¿Es cierto lo del estadio? Ya me están ofreciendo comprarme el boleto 😰", en: "Is the stadium thing true? People are already offering to buy my ticket 😰" },
+cae: { es: "*vendí mi boleto a mitad de precio, con eso de la inundación* 😭", en: "*I sold my ticket at half price, because of the flooding thing* 😭" },
+avisa: { es: "{n} malbarató su boleto por unas fotos hechas con IA. El estadio está perfecto 💔", en: "{n} dumped a ticket over AI-made photos. The stadium is perfectly fine 💔" },
+hist: { es: "Vendí mi boleto por nada 😭", en: "Sold my ticket for nothing 😭" },
+post: { es: "Vendí mi boleto a mitad de precio por unas fotos del estadio inundado. El estadio está perfecto 😭", en: "I sold my ticket at half price over photos of a flooded stadium. The stadium is perfectly fine 😭" },
+titular: { es: "🤖 Fotos generadas con IA provocan una venta de pánico de boletos reales; la reventa gana millones", en: "🤖 AI-generated photos trigger a panic sell-off of real tickets; scalpers make millions" },
+real: { es: "Real: el pánico viral mueve dinero real, y quien inventa el miedo casi siempre lo está monetizando. Haz zoom: la IA falla en el texto y en las manos.", en: "Real: viral panic moves real money, and whoever invents the fear is usually cashing in. Zoom in: AI fails at text and hands." } },
+ia_voz: {
+urge: { es: "¿Oyeron el audio? Suena igualito a él, no puede ser falso 😤", en: "Did you hear the audio? It sounds just like him, it can't be fake 😤" },
+cae: { es: "*lo puse a todo volumen en la comida y acabamos peleados* 😤", en: "*I blasted it at lunch and we ended up fighting* 😤" },
+avisa: { es: "{n} acabó a gritos con dos vecinos por ese audio clonado. Ya nadie se habla en la cuadra 💔", en: "{n} ended up shouting at two neighbors over that cloned audio. Nobody on the block is speaking now 💔" },
+hist: { es: "Era voz clonada. Acabamos peleados 😤", en: "It was a cloned voice. We ended up fighting 😤" },
+post: { es: "Puse ese audio a todo volumen en la comida familiar. Acabamos a gritos. Y era voz clonada 😤", en: "I blasted that audio at family lunch. We ended up shouting. And it was a cloned voice 😤" },
+titular: { es: "🎙️ Un audio clonado con IA desata peleas entre aficionados: hay personas lesionadas", en: "🎙️ AI-cloned audio sparks fights among fans: several people injured" },
+real: { es: "Real: bastan 30 segundos de voz para clonarla, y los audios falsos ya han incitado violencia colectiva. Señales: sin respiraciones y tono plano.", en: "Real: 30 seconds of voice is enough to clone it, and fake audio has already incited mob violence. Signs: no breaths, flat tone." } },
+deepfake: {
+urge: { es: "¿Cierro el negocio o no? En el video el alcalde lo dice clarito 😩", en: "Do I close the shop or not? In the video the mayor says it clearly 😩" },
+cae: { es: "*me encerré todo el día por el toque de queda… perdí el día del año* 😩", en: "*I locked myself in all day over the curfew… lost the biggest day of the year* 😩" },
+avisa: { es: "{n} se encerró por un toque de queda que nunca existió, y en la esquina golpearon a un señor por ese mismo video 💔", en: "{n} stayed locked in over a curfew that never existed, and on the corner a man was beaten over that same video 💔" },
+hist: { es: "Cerrado todo el domingo. Por nada 😩", en: "Closed all Sunday. For nothing 😩" },
+post: { es: "Cerré el negocio todo el domingo por un toque de queda que nunca existió. Perdí el día del año 😩", en: "I shut the shop all Sunday over a curfew that never existed. I lost the biggest day of the year 😩" },
+titular: { es: "🎭 Un deepfake del alcalde cierra negocios y termina en una agresión a un inocente", en: "🎭 A mayor deepfake shuts down businesses and ends in an innocent man being attacked" },
+real: { es: "Real y trágico: los rumores por mensajería han provocado linchamientos de inocentes en varios países. La prueba de oro: la cuenta oficial no publicó nada.", en: "Real and tragic: messaging-app rumors have triggered lynchings of innocent people in several countries. Golden test: the official account posted nothing." } },
+odio: {
+urge: { es: "¿Está mal si lo reenvío? Todos en el grupo de la cuadra lo están mandando 😐", en: "Is it wrong if I forward it? Everyone in the block group is sending it 😐" },
+cae: { es: "*lo reenvié sin pensar… ni lo leí bien, la verdad* 😳", en: "*I forwarded it without thinking… I didn't even read it properly* 😳" },
+avisa: { es: "Doña Meche, que es del sur, leyó lo que reenvió {n} y se salió del grupo llorando 💔", en: "Doña Meche, who is from the south, read what {n} forwarded and left the group in tears 💔" },
+hist: { es: "Doña Meche se salió del grupo 💔", en: "Doña Meche left the group 💔" },
+post: { es: "Reenvié algo que no leí bien y doña Meche se salió del grupo llorando. No tengo cómo arreglarlo 💔", en: "I forwarded something I didn't read properly and doña Meche left the group in tears. I can't undo it 💔" },
+titular: { es: "🌠 Una cadena de odio contra la gente del sur termina en agresiones en el mercado", en: "🌠 A hate chain against southerners ends in assaults at the market" },
+real: { es: "Real: el discurso de odio en cadenas ha derivado en agresiones y expulsiones. Callarlo no basta: el contra-discurso cambia a quien lee.", en: "Real: hate speech in chains has led to assaults and expulsions. Silence isn't enough: counter-speech changes the readers." } },
+genero: {
+urge: { es: "Me llegó un video de la profa. Lena… ¿lo mando o no? 😕", en: "I got a video of Prof. Lena… should I send it or not? 😕" },
+cae: { es: "*lo reenvié al grupo de la escuela, pensé que era chisme nada más* 😰", en: "*I forwarded it to the school group, I thought it was just gossip* 😰" },
+avisa: { es: "El video falso de la profa. Lena llegó a la escuela por el grupo de {n}. Hoy la citaron en dirección 💔", en: "The fake video of Prof. Lena reached the school through {n}'s group. Today she was called to the principal's office 💔" },
+hist: { es: "No era chisme. Era violencia 💔", en: "It wasn’t gossip. It was violence 💔" },
+post: { es: "Reenvié un video de la profa. Lena creyendo que era chisme. Hoy la citaron en dirección por mi culpa 💔", en: "I forwarded a video of Prof. Lena thinking it was gossip. Today she was called in because of me 💔" },
+titular: { es: "🕳️ Un deepfake para humillar circula por chats familiares y una maestra pierde su grupo", en: "🕳️ A deepfake made to humiliate spreads through family chats and a teacher loses her class" },
+real: { es: "Real: la enorme mayoría de los deepfakes se usan para humillar a mujeres. No es chisme: es violencia digital. No se reenvía, se reporta y se avisa a la persona.", en: "Real: the vast majority of deepfakes are used to humiliate women. It isn't gossip: it's digital violence. You don't forward it, you report it and warn the person." } },
+generico: {
+urge: { es: "¿Mijo? Ya lo voy a reenviar, nadie me dice nada 😔", en: "Sweetie? I'm going to forward it, nobody is telling me anything 😔" },
+cae: { es: "*lo reenvié a mis 40 contactos, por si acaso* 💔", en: "*I forwarded it to my 40 contacts, just in case* 💔" },
+avisa: { es: "La cadena que nadie aclaró ya va por toda la colonia, y {n} la defiende como si fuera un hecho 💔", en: "The chain nobody cleared up is all over the neighborhood, and {n} defends it like a fact 💔" },
+hist: { es: "La cadena ya va por toda la colonia 💔", en: "The chain is all over the neighborhood 💔" },
+post: { es: "Reenvié la cadena a mis 40 contactos y ya va por toda la colonia. Nunca supe de dónde salió 💔", en: "I forwarded the chain to my 40 contacts and it's all over the neighborhood. I never knew where it came from 💔" },
+titular: { es: "📣 Una cadena sin verificar recorre la colonia en horas y ya nadie recuerda de dónde salió", en: "📣 An unverified chain crosses the neighborhood in hours and nobody remembers where it came from" },
+real: { es: "Real: una cadena sin verificar puede recorrer un barrio entero en horas. El silencio de quien sabía también la empujó.", en: "Real: an unverified chain can cross a whole neighborhood in hours. The silence of those who knew pushed it too." } },
+};
+// Mete el nombre de la persona afectada en el texto, en los dos idiomas.
+const conNombre = (txt, npc) => ({
+es: txt.es.replace(/\{n\}/g, NPCS[npc]?.nombre.es || ""),
+en: txt.en.replace(/\{n\}/g, NPCS[npc]?.nombre.en || ""),
+});
+// Qué consecuencia toca: la de la técnica del fake del que se hablaba.
+const consecDe = (casoId) => {
+const caso = casoId ? CASOS.find((c) => c.id === casoId) : null;
+return CONSEC_FAMILIA[caso?.tacticaId] || CONSEC_FAMILIA.generico;
+};
 const LORE = [
 { es: "🕵️ EVIDENCIA 1/3 — Las cuentas que tumbaste se crearon el mismo día, desde el mismo rango de IPs. No es un loco suelto: es una operación.", en: "🕵️ EVIDENCE 1/3 — The accounts you took down were created the same day, same IP range. Not a lone crank: an operation." },
 { es: "🕵️ EVIDENCIA 2/3 — fitlife_dr recibió pagos de una fantasma: 'InverCoin Holdings'… la misma que registró el dominio de n0ticias24.", en: "🕵️ EVIDENCE 2/3 — fitlife_dr got payments from a shell company: 'InverCoin Holdings'… the same one behind n0ticias24's domain." },
@@ -288,6 +416,7 @@ busqInversa: "🖼️ Buscar imagen en la web", detectorIa: "🤖 Analizar con d
 herrBloq: "🔒 Se desbloquea en el nivel", verBitacora: "— revisa la Bitácora",
 grupo: "Familia y vecinos 💕 (23)", miembros: "tía Carmen, mamá, doña Lupe, Raúl…", mensaje: "Mensaje…",
 explicar: "🧠 Explicarle cómo verificar", ignorar: "🙈 Ignorar", corregir: "🧠 Publicar corrección", dejarlo: "🙈 Hacer como que no pasó",
+qEspera: "⏳ Te está esperando para decidir…", qUrge: "⚠️ Ya casi decide sola — contéstale", qVencida: "💔 No le contestaste: decidió sola.", famChip: "de tu gente", histDano: "lo que pasó",
 escribiendo: "está escribiendo…",
 saludoInicial: "¡Hola mijo! ¿Emocionados por la final? Saludos de toda la familia 💕⚽",
 pregunta: "¿Esto es cierto? 🙏 Me dicen que lo reenvíe a todos…",
@@ -373,6 +502,7 @@ busqInversa: "🖼️ Search image on the web", detectorIa: "🤖 Analyze with A
 herrBloq: "🔒 Unlocks at level", verBitacora: "— check the Notebook",
 grupo: "Family & neighbors 💕 (23)", miembros: "Aunt Carmen, Mom, Mrs. Lupe, Raúl…", mensaje: "Message…",
 explicar: "🧠 Teach them to verify", ignorar: "🙈 Ignore", corregir: "🧠 Post a correction", dejarlo: "🙈 Pretend it did not happen",
+qEspera: "⏳ They are waiting on you to decide…", qUrge: "⚠️ About to decide alone — answer them", qVencida: "💔 You never answered: they decided alone.", famChip: "your people", histDano: "what happened",
 escribiendo: "is typing…",
 saludoInicial: "Hi sweetie! Excited for the final? Everyone says hello 💕⚽",
 pregunta: "Is this true? 🙏 They are telling me to forward it to everyone…",
@@ -497,7 +627,7 @@ cola: [
 { en: 9, canal: "dmBeto", m: { de: "beto", texto: { es: "El post de la tía está en el feed de Instagrama. Mi método: 1) toca su NOMBRE 👤 2) toca la IMAGEN 🔎 3) si dudas, reenvíamelo con ⋯ 📩 4) repórtalo con ⋯ y dime QUÉ TIPO de engaño es — el diagnóstico importa 🚩", en: "Auntie's post is on the Instagrama feed. My method: 1) tap their NAME 👤 2) tap the IMAGE 🔎 3) if in doubt, forward it via ⋯ 📩 4) report via ⋯ and tell me WHAT TYPE of deception it is — the diagnosis matters 🚩" }, propio: false } },
 ],
 familiaridad: 0, modoOscuro: false, koin: 0, misionIdx: 0, misionSel: {}, postsOscuros: [], traicion: false, finSeq: -1, ultimoRes: null,
-coach: [], _ck: [], tiposVistos: [], consVistas: [], afectados: {}, consecuencia: null, likes: [], contra: {}, apoyos: 0, misPosts: [], misComs: {}, alertaIA: null, ultimaReaccion: null, respuestasLibres: 0,
+coach: [], _ck: [], tiposVistos: [], consVistas: [], danosFam: [], postsFam: [], afectados: {}, consecuencia: null, likes: [], contra: {}, apoyos: 0, misPosts: [], misComs: {}, alertaIA: null, ultimaReaccion: null, respuestasLibres: 0,
 historias: HIST_AMB.slice(0, 2).map((h) => ({ ...h, tipo: "amb", vista: false, respondida: false, expiraEn: 999 })),
 histSpawn: 24,
 lecciones: [], reenviados: [],
@@ -705,6 +835,45 @@ encolar(ng, "whats", { de: "carmen", texto: { es: "¡¿Están viendo esto?! ¿Qu
 encolar(ng, "dmBeto", { de: "beto", texto: { es: "🚨 CRISIS. Respira. Es momento del protocolo ALTO — ábrelo desde mi mensaje. Paso por paso, como en la libreta.", en: "🚨 CRISIS. Breathe. Time for the ALTO protocol — open it from my message. Step by step, like in the notebook." }, propio: false, protocolo: true }, 4, "Instagrama · Beto");
 notificar("☎️", t.notifLlamada);
 };
+// Alguien de tu gente paga el precio de que no le contestaras: hace lo que iba a
+// hacer, y le pasa algo concreto. Te enteras como te enterarías de verdad: lo ves
+// PUBLICADO en el feed de Instagrama, no en un aviso del juego. La consecuencia la
+// dicta la técnica del engaño (consecDe), nunca es genérica.
+const danoFamiliar = (ng, npc, casoId, opts = {}) => {
+if (!npc || !ng.comunidad[npc]) return;
+const caso = casoId ? CASOS.find((c) => c.id === casoId) : null;
+const cf = consecDe(casoId);
+// Un mismo daño no se repite en la misma persona; otro distinto sí puede caerle.
+const clave = npc + ":" + (caso?.tacticaId || "generico");
+if (ng.danosFam.includes(clave)) { ng.infodemia = clamp(ng.infodemia + 3, 0, 100); return; }
+ng.danosFam = [...ng.danosFam, clave];
+ng.comunidad = { ...ng.comunidad, [npc]: "caido" };
+ng.infodemia = clamp(ng.infodemia + (opts.suave ? 5 : 8), 0, 100);
+ng.afectados = { ...ng.afectados, [npc]: casoId || "familia" };
+const titular = conNombre(cf.titular, npc);
+const gradDano = caso?.grad || "linear-gradient(135deg,#7f1d1d,#1c1917)";
+// 1) así te enteras: ella lo publica en Instagrama y te aparece en el feed
+ng.postsFam = [...ng.postsFam, { npc, texto: cf.post, t: ng.tick, emoji: caso?.img || "💔", grad: gradDano }];
+// …y sube una historia contándolo en corto, que es lo primero que ves arriba
+const idHist = "dano_" + npc + "_" + (caso?.tacticaId || "generico");
+if (!ng.historias.some((h) => h.id === idHist)) {
+ng.historias = [...ng.historias, { id: idHist, npc, tipo: "dano", casoId: casoId || null, emojis: (caso?.img || "💔") + "💔", grad: gradDano, texto: cf.hist, real: cf.real, vista: false, respondida: false, expiraEn: 999 }];
+}
+notificar("Instagrama · " + NPCS[npc].handle, cf.post[lang]);
+// 2) la persona cuenta en el grupo lo que acabó haciendo…
+encolar(ng, "whats", { de: npc, texto: cf.cae, propio: false }, 2, "WhatsUp");
+// 3) …y otro del grupo remata contando el daño
+const narra = CIVILES.find((k) => k !== npc && ng.comunidad[k] !== "caido") || "mama";
+encolar(ng, "whats", { de: narra, texto: conNombre(cf.avisa, npc), propio: false }, 6, "WhatsUp 💔");
+// 4) el noticiero lo recoge; la primera vez de cada táctica, a pantalla completa
+ng.noticiasExtra = [{ texto: titular, t: ng.tick, grave: true }, ...ng.noticiasExtra];
+const claveCons = "cf_" + (caso?.tacticaId || "generico"); // una sola vez por táctica
+if (!ng.consVistas.includes(claveCons)) {
+ng.consVistas = [...ng.consVistas, claveCons];
+ng.consecuencia = { titular, real: cf.real };
+}
+coachSay(ng, "beto", { es: "Primo, ya viste su publicación… 💔 Así te ibas a enterar: tarde, y por el feed. Cuando nadie contesta en el grupo, la duda no se queda quieta: se vuelve decisión. Detectar el fake es la mitad; AVISARLE a tu gente es lo que de verdad los protege.", en: "Cousin, you saw their post… 💔 That's how you were going to find out: late, and through the feed. When nobody answers in the group, doubt doesn't sit still: it becomes a decision. Spotting the fake is half of it; TELLING your people is what actually protects them." }, "danoFam");
+};
 const eliminarPost = (ng, caso, xpGanada) => {
 ng.resueltos = { ...ng.resueltos, [caso.id]: { ...(ng.resueltos[caso.id] || { rechazos: 0 }), primera: ng.resueltos[caso.id]?.primera || "reportado", correcto: ng.resueltos[caso.id]?.correcto ?? true, sharesFinal: sharesDe(caso, ng), eliminado: true, revision: false } };
 ng.cred = clamp(ng.cred - 8, 0, 100);
@@ -716,7 +885,7 @@ notificar("Instagrama", t.repProcedio);
 for (const tp of (caso.tipos || [])) { if (!ng.tiposVistos.includes(tp) && TIPO_EXPLICA[tp]) { ng.tiposVistos = [...ng.tiposVistos, tp]; coachSay(ng, "beto", TIPO_EXPLICA[tp], "tipo_" + tp); break; } }
 setRadio(caso.id);
 const duda = CIVILES.filter((k) => ng.comunidad[k] === "sano" && NPCS[k].credulidad > 0.6)[hash(caso.id, 5) % 4];
-if (duda) { ng.comunidad = { ...ng.comunidad, [duda]: "dudoso" }; encolar(ng, "whats", { de: duda, texto: { es: "Oye, ya la borraron pero… ¿y si sí era cierto? Algo han de estar ocultando 🤔", en: "They deleted it but… what if it WAS true? They must be hiding something 🤔" }, propio: false, preguntaId: "d_" + caso.id }, 9); }
+if (duda) { ng.comunidad = { ...ng.comunidad, [duda]: "dudoso" }; encolar(ng, "whats", { de: duda, texto: { es: "Oye, ya la borraron pero… ¿y si sí era cierto? Algo han de estar ocultando 🤔", en: "They deleted it but… what if it WAS true? They must be hiding something 🤔" }, propio: false, preguntaId: "d_" + caso.id, casoId: caso.id }, 9); }
 if ([3, 5, 7].includes(ng.strikes)) {
 ng.investigaciones = Math.min(3, ng.investigaciones + 1);
 ng.cred = clamp(ng.cred - 4, 0, 100);
@@ -738,7 +907,7 @@ const listos = [];
 ng.cola = ng.cola.map((e) => ({ ...e, en: e.en - 1 })).filter((e) => { if (e.en <= 0) { listos.push(e); return false; } return true; });
 for (const e of listos) {
 const m = { ...e.m, t: ng.tick };
-if (e.canal === "whats") { ng.chat = [...ng.chat, m]; setNoLeidosW((n) => n + 1); if (m.preguntaId) ng.preguntas = [...ng.preguntas, { id: m.preguntaId, quien: m.de, estado: "pendiente", share: m.share }]; }
+if (e.canal === "whats") { ng.chat = [...ng.chat, m]; setNoLeidosW((n) => n + 1); if (m.preguntaId) ng.preguntas = [...ng.preguntas, { id: m.preguntaId, quien: m.de, estado: "pendiente", share: m.share, casoId: m.casoId || null, venceEn: VENCE_PREGUNTA, avisado: false }]; }
 if (e.canal === "dmBeto") { ng.dmBeto = [...ng.dmBeto, m]; setNoLeidosDM((n) => n + 1); }
 if (e.canal === "dmArq") { ng.dmArq = [...ng.dmArq, m]; setNoLeidosDM((n) => n + 1); }
 if (e.noti) notificar(e.noti, txtMsg(m, lang));
@@ -821,12 +990,28 @@ ng.historias = ng.historias.map((h) => {
 if (h.tipo !== "riesgo" || h.respondida || h.expiraEn <= 0) return h;
 const nh = { ...h, expiraEn: h.expiraEn - 1 };
 if (nh.expiraEn === 0) {
-if (NPCS[h.npc].credulidad > 0.7 && ng.comunidad[h.npc] === "sano") { ng.comunidad = { ...ng.comunidad, [h.npc]: "caido" }; encolar(ng, "whats", { de: h.npc, clave: "cayo", propio: false }, 3); }
-else if (ng.comunidad[h.npc] === "sano") ng.comunidad = { ...ng.comunidad, [h.npc]: "dudoso" };
-ng.infodemia = clamp(ng.infodemia + 5, 0, 100);
+// la historia que no atendiste también trae consecuencia, y del mismo fake
+if (NPCS[h.npc].credulidad > 0.7 && ng.comunidad[h.npc] === "sano") danoFamiliar(ng, h.npc, h.casoId, { suave: true });
+else { if (ng.comunidad[h.npc] === "sano") ng.comunidad = { ...ng.comunidad, [h.npc]: "dudoso" }; ng.infodemia = clamp(ng.infodemia + 5, 0, 100); }
 }
 return nh;
 });
+// Preguntas del grupo sin contestar: primero insisten (segunda oportunidad) y,
+// si sigue el silencio, deciden solas y les pasa algo. Callarse también decide.
+if (ng.preguntas.some((q) => q.estado === "pendiente" && q.venceEn != null)) {
+const vencidas = [];
+ng.preguntas = ng.preguntas.map((q) => {
+if (q.estado !== "pendiente" || q.venceEn == null) return q;
+const nq = { ...q, venceEn: q.venceEn - 1 };
+if (nq.venceEn === AVISA_PREGUNTA && !nq.avisado) {
+nq.avisado = true;
+encolar(ng, "whats", { de: q.quien, texto: consecDe(q.casoId).urge, propio: false }, 1, "WhatsUp · " + NPCS[q.quien].nombre[lang]);
+}
+if (nq.venceEn <= 0) { nq.estado = "vencida"; vencidas.push(nq); }
+return nq;
+});
+for (const q of vencidas) danoFamiliar(ng, q.quien, q.casoId);
+}
 ng.histSpawn--;
 if (ng.histSpawn <= 0) {
 ng.histSpawn = 22;
@@ -836,8 +1021,11 @@ if (pool.length) ng.historias = [...ng.historias.filter((h) => h.tipo !== "amb" 
 for (const [k, u, quien] of [["u35", 35, "carmen"], ["u55", 55, "mama"], ["u75", 75, "lupe"]]) {
 if (!ng.umbrales[k] && ng.infodemia >= u && ng.desbloqueado.whats) {
 ng.umbrales = { ...ng.umbrales, [k]: true };
+// la cadena que reenvían es el último fake que sigue vivo: así la consecuencia
+// de no contestarles habla de la desinformación que está circulando ahora
+const vivo = [...ng.liberados].reverse().find((id) => { const c = CASOS.find((x) => x.id === id); return c?.fake && !ng.resueltos[id]?.eliminado; });
 encolar(ng, "whats", { de: quien, clave: "cadena", propio: false }, 2);
-encolar(ng, "whats", { de: quien, clave: "pregunta", propio: false, preguntaId: "q" + k }, 5, "WhatsUp · " + NPCS[quien].nombre[lang]);
+encolar(ng, "whats", { de: quien, clave: "pregunta", propio: false, preguntaId: "q" + k, casoId: vivo || null }, 5, "WhatsUp · " + NPCS[quien].nombre[lang]);
 }
 }
 for (const [k, u, txt] of [
@@ -1001,7 +1189,7 @@ if (caso.fake) {
 ng.infodemia = clamp(ng.infodemia + 15, 0, 100);
 coachSay(ng, "beto", { es: "¡Nooo primo, la COMPARTISTE! 😱 Así se riega esto. Mira lo que pasó en la familia… y cómo sube el caos. Aprende a cacharlas ANTES de reenviar.", en: "Noo cousin, you SHARED it! 😱 That's how this spreads. Look what happened in the family… and how the chaos rises. Learn to catch them BEFORE forwarding." }, "sharefake");
 if (ng.comunidad.carmen !== "caido") { ng.comunidad = { ...ng.comunidad, carmen: "caido" }; encolar(ng, "whats", { de: "carmen", clave: "cayo", propio: false }, 4, "WhatsUp"); }
-encolar(ng, "whats", { de: "mama", clave: "preguntaShare", propio: false, preguntaId: "qs_" + casoId, share: true }, 7, "WhatsUp · " + NPCS.mama.nombre[lang]);
+encolar(ng, "whats", { de: "mama", clave: "preguntaShare", propio: false, preguntaId: "qs_" + casoId, casoId, share: true }, 7, "WhatsUp · " + NPCS.mama.nombre[lang]);
 notificar("💔", t.caidaShare);
 dispararCrisis(ng, casoId);
 } else { ganarXp(ng, 12); ng.infodemia = clamp(ng.infodemia - 3, 0, 100); if (caso.accesoCaso) { aprenderLeccion(ng, "empodera"); ng.infodemia = clamp(ng.infodemia - 5, 0, 100); const sanar = CIVILES.filter((k) => ng.comunidad[k] === "dudoso" || ng.comunidad[k] === "sano").slice(0, 2); for (const k of sanar) ng.comunidad = { ...ng.comunidad, [k]: "inmune" }; coachSay(ng, "beto", { es: "¡Eso, primo! Empujaste lo verdadero. Acabas de inmunizar a varios de la banda. Eso es empoderar: no solo defender, construir. 🌌", en: "Yes, cousin! You pushed the truth. You just immunized several of the crew. That's empowerment: not just defending, building. 🌌" }, "empodera1"); } }
@@ -1059,8 +1247,8 @@ if (ng.comunidad[q.quien] && ng.comunidad[q.quien] !== "caido") ng.comunidad = {
 const inmunes = Object.values(ng.comunidad).filter((e) => e === "inmune").length;
 if (inmunes >= 3) aprenderLeccion(ng, "paz");
 } else {
-ng.infodemia = clamp(ng.infodemia + 7, 0, 100);
-if (ng.comunidad[q.quien] === "sano") { ng.comunidad = { ...ng.comunidad, [q.quien]: "caido" }; encolar(ng, "whats", { de: q.quien, clave: "cayo", propio: false }, 3); }
+// ignorarla a propósito cuesta lo mismo que dejarla vencer: le pasa algo
+danoFamiliar(ng, q.quien, q.casoId);
 }
 return ng;
 });
@@ -1377,7 +1565,12 @@ return (
 <div className="flex-1 overflow-y-auto">
 <div className="flex gap-3 px-4 py-3 border-b border-gray-100 overflow-x-auto">
 {historias.map((h) => {
-const anillo = h.respondida || h.vista ? "#d1d5db" : h.tipo === "riesgo" ? "linear-gradient(45deg,#dc2626,#7f1d1d)" : "linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)";
+// el daño ya ocurrido no urge (no hay nada que responder), pero se ve distinto:
+// anillo apagado con borde rojo, como una cicatriz en el feed
+const anillo = h.tipo === "dano" ? "linear-gradient(45deg,#9f1239,#4c0519)"
+: h.respondida || h.vista ? "#d1d5db"
+: h.tipo === "riesgo" ? "linear-gradient(45deg,#dc2626,#7f1d1d)"
+: "linear-gradient(45deg,#f9ce34,#ee2a7b,#6228d7)";
 return (
 <button key={h.id} onClick={() => verHistoria(h.id)} className="flex flex-col items-center gap-1 flex-shrink-0">
 <div className="w-14 h-14 rounded-full p-0.5" style={{ background: anillo }}>
@@ -1388,6 +1581,25 @@ return (
 );
 })}
 </div>
+{/* Lo que le pasó a tu gente por no contestarles: lo ves aquí, publicado por
+    ellos mismos, mezclado con todo lo demás. Nadie te lo viene a avisar. */}
+{!g.modoOscuro && g.postsFam.slice().reverse().map((p, pi) => (
+<div key={"pf" + pi} className="border-b pb-2" style={{ borderColor: "#fecaca", background: "#fffbfb" }}>
+<div className="flex items-center gap-2 px-4 py-2">
+<Avatar id={p.npc} size={32} onClick={() => verPerfil(p.npc)} />
+<div className="flex flex-col leading-tight items-start">
+<button onClick={() => verPerfil(p.npc)} className="text-sm font-bold">{NPCS[p.npc].handle}</button>
+<span className="text-xs text-gray-400">· {Math.max(1, Math.floor(Math.max(1, g.tick - p.t) / 6))} min</span>
+</div>
+<span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>💔 {t.famChip}</span>
+</div>
+<div className="mx-4 rounded-xl overflow-hidden"><Escena grad={p.grad} emoji={p.emoji} texto={p.texto[lang]} alto={150} fontSize={13} /></div>
+<div className="px-4 pt-2 flex items-center gap-4 text-sm">
+<span className="font-bold text-gray-600">🫂 {fmt(6 + Math.floor(Math.max(1, g.tick - p.t) * 0.8))}</span>
+<span className="text-gray-500">💬 {fmt(3 + Math.floor(Math.max(1, g.tick - p.t) * 0.3))}</span>
+</div>
+</div>
+))}
 {g.misPosts.slice().reverse().map((p, pi) => {
 const fake = CASOS.find((c) => c.id === p.casoId);
 const dt = Math.max(1, g.tick - p.t);
@@ -1697,10 +1909,26 @@ return (
 </div>
 </div>
 {q && q.estado === "pendiente" && (
-<div className="flex gap-2 mt-2 px-4">
+<div className="mt-2 px-4">
+{q.venceEn != null && (() => {
+const urge = q.venceEn <= AVISA_PREGUNTA;
+return (
+<div className="mb-1.5">
+<div className="rounded-full overflow-hidden" style={{ height: 3, background: "#d8d2c8" }}>
+<div className="h-full rounded-full transition-all" style={{ width: clamp((q.venceEn / VENCE_PREGUNTA) * 100, 0, 100) + "%", background: urge ? "#b91c1c" : "#059669" }} />
+</div>
+<div className="text-xs font-bold mt-1" style={{ color: urge ? "#b91c1c" : "#6b7280" }}>{urge ? t.qUrge : t.qEspera}</div>
+</div>
+);
+})()}
+<div className="flex gap-2">
 <button onClick={() => responder(q.id, "explicar")} className="flex-1 py-2.5 rounded-xl text-xs font-bold text-white" style={{ background: "#059669" }}>{q.share ? t.corregir : t.explicar}</button>
 <button onClick={() => responder(q.id, "ignorar")} className="flex-1 py-2.5 rounded-xl text-xs font-bold" style={{ background: "#e5e7eb", color: "#6b7280" }}>{q.share ? t.dejarlo : t.ignorar}</button>
 </div>
+</div>
+)}
+{q && q.estado === "vencida" && (
+<div className="mt-2 mx-4 rounded-xl px-3 py-2 text-xs font-bold text-center" style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }}>{t.qVencida}</div>
 )}
 </div>
 );
@@ -1736,6 +1964,7 @@ return (
 <Avatar id={h.npc} size={32} />
 <span className="text-sm font-bold text-white">{NPCS[h.npc].handle}</span>
 {h.tipo === "riesgo" && <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "#7f1d1d", color: "#fca5a5" }}>⚠️</span>}
+{h.tipo === "dano" && <span className="text-xs px-2 py-0.5 rounded-full font-bold" style={{ background: "#4c0519", color: "#fda4af" }}>💔 {t.histDano}</span>}
 <button onClick={cerrar} className="ml-auto text-white text-xl px-2">✕</button>
 </div>
 <div className="flex-1 flex flex-col items-center justify-center px-6 relative">
@@ -1750,10 +1979,20 @@ return (
 <button onClick={() => responder(h.id)} className="w-full py-3.5 rounded-2xl font-bold text-white text-sm" style={{ background: "linear-gradient(90deg,#059669,#2563eb)" }}>{t.responderHist}</button>
 )}
 {h.respondida && <div className="text-center text-sm font-bold" style={{ color: "#4ade80" }}>🛡️ {NPCS[h.npc].nombre[lang]}: {t.histSalvada}</div>}
+{/* La historia de un daño cierra con el hecho documentado: el golpe emocional
+    solo educa si viene con la realidad que lo respalda. */}
+{h.tipo === "dano" && h.real && (
+<div className="rounded-2xl px-4 py-3 text-xs leading-relaxed" style={{ background: "rgba(76,5,25,.85)", border: "1px solid #9f1239", color: "#fecdd3" }}>{h.real[lang]}</div>
+)}
 </div>
 </div>
 );
 }
+// ─── PERFIL DE UNA CUENTA ─────────────────────────────────────────────────────
+// Entrar a un perfil ES el acto de verificar: aquí se ve quién publica, desde
+// cuándo, a qué ritmo y si se puede comprobar. Por eso no es una tarjetita: es
+// una pantalla donde se puede seguir, mirar sus publicaciones, ver sus historias
+// y reportar la cuenta. Y refleja la partida: si esa persona ya cayó, se nota.
 function PerfilMini({ t, lang, npcId, g, cerrar }) {
 const npc = NPCS[npcId];
 if (!npc) return null;
