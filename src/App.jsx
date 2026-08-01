@@ -110,18 +110,18 @@ padre: { handle: "padre_tomas", avatar: "⛪", rol: "vecino", credulidad: 0.55, 
 profe: { handle: "profe.lena", avatar: "📚", rol: "vecino", credulidad: 0.05, nombre: { es: "Profa. Lena", en: "Prof. Lena" }, bio: { es: "Maestra. Enseña búsqueda inversa.", en: "Teacher. Teaches reverse image search." } },
 fitlife: { handle: "fitlife_dr", avatar: "💪", rol: "influencer", credulidad: 0.4, nombre: { es: "FitLife Dr.", en: "FitLife Dr." }, bio: { es: "120k seguidores. Últimamente publica productos raros sin #publicidad…", en: "120k followers. Lately posting odd products with no #ad…" } },
 mia: { handle: "viaja_con_mia", avatar: "✈️", rol: "influencer", credulidad: 0.45, nombre: { es: "Mía", en: "Mía" }, bio: { es: "Influencer de viajes. Caza boletos para la final.", en: "Travel influencer. Hunting final tickets." } },
-n0ticias: { handle: "n0ticias24_oficial", avatar: "🗞️", rol: "villano", credulidad: 0, nombre: { es: "n0ticias24", en: "n0ticias24" }, bio: { es: "⚠️ Creada hace 2 días · imita a Noticias24 con un CERO · 87 posts/día.", en: "⚠️ Created 2 days ago · imitates News24 with a ZERO · 87 posts/day." } },
-boletos: { handle: "boletos_finalmx", avatar: "🎟️", rol: "bot", credulidad: 0, nombre: { es: "BoletosFinalMX", en: "TicketsFinalMX" }, bio: { es: "⚠️ Creada esta semana · pide depósitos directos · 0 reseñas.", en: "⚠️ Created this week · asks for direct deposits · 0 reviews." } },
+n0ticias: { handle: "n0ticias24_oficial", avatar: "🗞️", rol: "villano", credulidad: 0, nombre: { es: "n0ticias24", en: "n0ticias24" }, bio: { es: "Noticias al momento, para que estés informado primero.", en: "News as it happens, so you're informed first." } },
+boletos: { handle: "boletos_finalmx", avatar: "🎟️", rol: "bot", credulidad: 0, nombre: { es: "BoletosFinalMX", en: "TicketsFinalMX" }, bio: { es: "Reventa segura para la final. Últimos boletos disponibles 🎟️", en: "Safe resale for the final. Last tickets available 🎟️" } },
 futgossip: { handle: "futgossip_mx", avatar: "⚽", rol: "influencer", credulidad: 0.2, nombre: { es: "FutGossip", en: "FutGossip" }, bio: { es: "⚠️ Chismes 'exclusivos'. Nunca cita fuentes. Vive del escándalo.", en: "⚠️ 'Exclusive' gossip. Never cites sources. Lives off scandal." } },
-enfermera: { handle: "enfermera_despierta", avatar: "💉", rol: "bot", credulidad: 0, nombre: { es: "EnfermeraDespierta", en: "AwakeNurse" }, bio: { es: "⚠️ Anónima · sin cédula ni hospital · vende 'desintoxicantes' en su bio.", en: "⚠️ Anonymous · no license or hospital · sells 'detox kits' in her bio." } },
-ovni: { handle: "verdad_oculta_mx", avatar: "🛸", rol: "bot", credulidad: 0, nombre: { es: "VerdadOculta", en: "HiddenTruth" }, bio: { es: "⚠️ 'Lo que NO quieren que veas' · todo es secreto, nada tiene fuente.", en: "⚠️ 'What they DON'T want you to see' · everything is secret, nothing has a source." } },
-veci: { handle: "veci_informa", avatar: "🗣️", rol: "bot", credulidad: 0, nombre: { es: "VeciInforma", en: "VeciInforma" }, bio: { es: "⚠️ 'Mi primo del gobierno dice…' — el primo nunca tiene nombre.", en: "⚠️ 'My government cousin says…' — the cousin never has a name." } },
+enfermera: { handle: "enfermera_despierta", avatar: "💉", rol: "bot", credulidad: 0, nombre: { es: "EnfermeraDespierta", en: "AwakeNurse" }, bio: { es: "Lo que el sistema de salud no te cuenta. Comparto desde mi experiencia.", en: "What the health system won't tell you. Sharing from my experience." } },
+ovni: { handle: "verdad_oculta_mx", avatar: "🛸", rol: "bot", credulidad: 0, nombre: { es: "VerdadOculta", en: "HiddenTruth" }, bio: { es: "Lo que no vas a ver en ningún otro lado. Despierta.", en: "What you won't see anywhere else. Wake up." } },
+veci: { handle: "veci_informa", avatar: "🗣️", rol: "bot", credulidad: 0, nombre: { es: "VeciInforma", en: "VeciInforma" }, bio: { es: "Lo que se comenta en la colonia, de primera mano.", en: "What's being said around the neighborhood, firsthand." } },
 clima: { handle: "clima_oficial", avatar: "🌦️", rol: "oficial", credulidad: 0, nombre: { es: "Clima Oficial", en: "Official Weather" }, bio: { es: "✔ Verificada · 9 años · fuente gubernamental.", en: "✔ Verified · 9 years · government source." } },
 medio: { handle: "noticias24_verif", avatar: "📰", rol: "oficial", credulidad: 0, nombre: { es: "Noticias24", en: "News24" }, bio: { es: "✔ El medio REAL: verificado, 20 años, nombre exacto sin trucos.", en: "✔ The REAL outlet: verified, 20 years, exact name, no tricks." } },
 ong: { handle: "salud_comunitaria_ong", avatar: "🏥", rol: "oficial", credulidad: 0, nombre: { es: "Salud Comunitaria", en: "Community Health" }, bio: { es: "✔ ONG registrada, 12 años, transparencia publicada.", en: "✔ Registered NGO, 12 years, published transparency." } },
 parodia: { handle: "el_sarcastico_mx", avatar: "😏", rol: "influencer", credulidad: 0.1, nombre: { es: "El Sarcástico", en: "The Sarcastic" }, bio: { es: "PARODIA declarada 😏 humor deportivo. NO somos noticias reales (lo dice aquí, en la bio).", en: "Declared PARODY 😏 sports humor. NOT real news (it says so right here, in the bio)." } },
 sombra: { handle: "info_urgente_mx", avatar: "🕶️", rol: "villano", credulidad: 0, nombre: { es: "info_urgente_mx", en: "info_urgente_mx" }, bio: { es: "⚠️ Cuenta nueva, anónima… tuya. Nadie sabe quién está detrás. Todavía.", en: "⚠️ New, anonymous account… yours. Nobody knows who is behind it. Yet." } },
-troll: { handle: "vs_los_del_sur", avatar: "👺", rol: "bot", credulidad: 0, nombre: { es: "AntiSur", en: "AntiSouth" }, bio: { es: "⚠️ Cuenta creada hace 3 días, sin foto real, puros insultos a la gente del sur. Handle agresivo, cero información. Señales de troll de manual.", en: "⚠️ Account created 3 days ago, no real photo, pure insults toward southerners. Aggressive handle, zero info. Textbook troll signals." } },
+troll: { handle: "vs_los_del_sur", avatar: "👺", rol: "bot", credulidad: 0, nombre: { es: "AntiSur", en: "AntiSouth" }, bio: { es: "Defendiendo lo nuestro. No nos vamos a quedar callados.", en: "Defending our own. We won't stay quiet." } },
 arq: { handle: "el_arquitecto", avatar: "🎭", rol: "villano", credulidad: 0, nombre: { es: "El Arquitecto", en: "The Architect" }, bio: { es: "??? · La cuenta detrás de las cuentas.", en: "??? · The account behind the accounts." } },
 };
 const CIVILES = ["carmen", "mama", "lupe", "raul", "flores", "chuy", "karla", "padre", "mia"];
@@ -395,8 +395,8 @@ cons: { npc: "chuy", titular: { es: "🔥 Turba enardecida por el video falso de
 //  avisa   · cómo te enteras del daño: otro del grupo lo cuenta  ({n} = su nombre)
 //  post    · lo que ELLA publica en Instagrama: así te enteras viendo el feed
 //  titular · lo recoge el noticiero  ·  real · el caso documentado que lo ancla
-const VENCE_PREGUNTA = 30; // ticks que aguanta una pregunta del grupo sin respuesta
-const AVISA_PREGUNTA = 15; // a la mitad del plazo, insisten
+const VENCE_PREGUNTA = 45; // ticks que aguanta una pregunta del grupo sin respuesta (antes: 30 — ~21s se sentía injusto sin aviso previo)
+const AVISA_PREGUNTA = 20; // punto en el que insisten — deja ~14s de margen real después del aviso
 const CONSEC_FAMILIA = {
 fraude: {
 urge: { es: "¿Mijo? Nada más dime si deposito o no, se me va el cupo 😖", en: "Sweetie? Just tell me if I deposit or not, my spot is going 😖" },
@@ -591,7 +591,7 @@ grupo: "Familia y vecinos 💕 (23)", miembros: "tía Carmen, mamá, doña Lupe,
 explicar: "🧠 Explicarle cómo verificar", ignorar: "🙈 Ignorar", corregir: "🧠 Publicar corrección", dejarlo: "🙈 Hacer como que no pasó",
 qEspera: "⏳ Te está esperando para decidir…", qUrge: "⚠️ Ya casi decide sola — contéstale", qVencida: "💔 No le contestaste: decidió sola.", famChip: "de tu gente", histDano: "lo que pasó",
 perfPubs: "publicaciones", perfSeg: "seguidores", perfSig: "siguiendo",
-perfSeguir: "Seguir", perfSiguiendo: "Siguiendo ✓", perfReportar: "🚩 Reportar cuenta", perfReportada: "🚩 reportada",
+perfSeguir: "Seguir", perfSiguiendo: "Siguiendo ✓", perfReportar: "🚩 Reportar cuenta", perfReportada: "🚩 reportada", perfCuentaGenerica: "cuenta personal",
 perfRevisa: "Revisa esta cuenta", perfRevisaSub: "El mismo examen para todas las cuentas, incluidas las de tu familia. Así se revisa a QUIÉN le estás creyendo, antes de creerle.",
 perfLimpio: "Limpio:", perfOjo: "Ojo:", perfHistorias: "Historias", perfPubsTit: "Publicaciones", perfSinPosts: "Todavía no ha publicado nada.",
 perfCaido: "cayó en un engaño", perfDudoso: "dudando", perfInmune: "ya sabe verificar",
@@ -682,7 +682,7 @@ grupo: "Family & neighbors 💕 (23)", miembros: "Aunt Carmen, Mom, Mrs. Lupe, R
 explicar: "🧠 Teach them to verify", ignorar: "🙈 Ignore", corregir: "🧠 Post a correction", dejarlo: "🙈 Pretend it did not happen",
 qEspera: "⏳ They are waiting on you to decide…", qUrge: "⚠️ About to decide alone — answer them", qVencida: "💔 You never answered: they decided alone.", famChip: "your people", histDano: "what happened",
 perfPubs: "posts", perfSeg: "followers", perfSig: "following",
-perfSeguir: "Follow", perfSiguiendo: "Following ✓", perfReportar: "🚩 Report account", perfReportada: "🚩 reported",
+perfSeguir: "Follow", perfSiguiendo: "Following ✓", perfReportar: "🚩 Report account", perfReportada: "🚩 reported", perfCuentaGenerica: "personal account",
 perfRevisa: "Check this account", perfRevisaSub: "The same test for every account, your family's included. This is how you check WHO you are believing, before you believe them.",
 perfLimpio: "Clean:", perfOjo: "Careful:", perfHistorias: "Stories", perfPubsTit: "Posts", perfSinPosts: "Nothing posted yet.",
 perfCaido: "fell for a hoax", perfDudoso: "wavering", perfInmune: "knows how to verify",
@@ -812,6 +812,7 @@ dmArq: [], ofertas: { o1: null, o2: null }, preguntas: [],
 cola: [
 { en: 5, canal: "dmBeto", m: { de: "beto", clave: "betoLock", propio: false }, noti: "Instagrama · beto.mx (primo)" },
 { en: 9, canal: "dmBeto", m: { de: "beto", texto: { es: "El post de la tía está en el feed de Instagrama. Mi método: 1) toca su NOMBRE 👤 2) toca la IMAGEN 🔎 3) si dudas, reenvíamelo con ⋯ 📩 4) repórtalo con ⋯ y dime QUÉ TIPO de engaño es — el diagnóstico importa 🚩", en: "Auntie's post is on the Instagrama feed. My method: 1) tap their NAME 👤 2) tap the IMAGE 🔎 3) if in doubt, forward it via ⋯ 📩 4) report via ⋯ and tell me WHAT TYPE of deception it is — the diagnosis matters 🚩" }, propio: false } },
+{ en: 14, canal: "dmBeto", m: { de: "beto", texto: { es: "Ah, y ojo: si alguien del grupo te pregunta algo en WhatsUp y tardas mucho en contestar, va a decidir SOLA — y eso les puede pasar de verdad. No es que te apuren porque sí: así se siente cuando la urgencia es el arma. Contesta rápido, aunque sea para decirles 'espérenme, estoy verificando' 🙏", en: "Oh, and heads up: if someone in the group asks you something on WhatsUp and you take too long to answer, they will decide ON THEIR OWN — and it can really cost them. It is not rushing you for no reason: this is what it feels like when urgency IS the weapon. Answer fast, even if it is just 'hang on, I'm verifying' 🙏" }, propio: false } },
 ],
 familiaridad: 0, modoOscuro: false, koin: 0, misionIdx: 0, misionSel: {}, postsOscuros: [], traicion: false, finSeq: -1, ultimoRes: null,
 coach: [], _ck: [], tiposVistos: [], consVistas: [], danosFam: [], postsFam: [], afectados: {},
@@ -1117,6 +1118,15 @@ if (ng.strikes === 3) notificar("🎭", t.cuentaSusp);
 if (ng.desbloqueado.whats) {
 const fan = CIVILES.filter((k) => ng.comunidad[k] !== "caido")[hash(caso.id, 2) % 6];
 if (fan) encolar(ng, "whats", { de: fan, texto: { es: "¿Vieron que lo de " + caso.img + " era FALSO? Alguien lo reportó a tiempo 🙌", en: "Did you see the " + caso.img + " thing was FAKE? Someone reported it in time 🙌" }, propio: false }, 6);
+}
+// FIX: reportar la fuente en Instagrama ya cuenta como haber contenido la
+// crisis — antes, el reloj de WhatsApp seguía corriendo aunque hubieras
+// reportado a tiempo, y un familiar podía caer de todos modos. Ahora,
+// si el caso reportado tiene una crisis activa, se resuelve aquí también.
+if (ng.crisis && ng.crisis.casoId === caso.id) {
+ng.crisis = null; setProto(false);
+notificar("✅", t.protoListo);
+encolar(ng, "whats", { de: "beto", texto: { es: "¡Justo a tiempo, primo! Reportaste la fuente antes de que se saliera de control. Esta vez no hubo daño 🙌", en: "Just in time, cousin! You reported the source before it spun out of control. No damage this time 🙌" }, propio: false }, 2, "Instagrama · Beto");
 }
 };
 useEffect(() => {
@@ -1607,7 +1617,15 @@ if (tutoOn && pantalla === "insta" && idxDe("irInsta") >= tutoPaso) saltarA("irI
 }, [pantalla]);
 useEffect(() => { // abrir cualquier hoja avanza al paso correspondiente, saltando intermedios
 if (!tutoOn || !sheet) return;
-if (sheet.tipo === "imagen") saltarA("verImg");
+// FIX: tocar la imagen del post ANTES de haber visto el perfil del autor ya
+// no salta directo a "abrirMenu" — antes esto se sentía como "ya sabes que
+// es falso" sin haber visto realmente por qué. Ahora, si aún no llegaste a
+// verAutor, tocar la imagen solo te avanza hasta ese paso (toca el nombre),
+// nunca lo rebasa.
+if (sheet.tipo === "imagen") {
+if (tutoPaso <= idxDe("verAutor")) saltarA("verPost");
+else saltarA("verImg");
+}
 if (sheet.tipo === "menu") saltarA("abrirMenu");
 if (sheet.tipo === "razones") saltarA("reportar");
 }, [sheet]);
@@ -2339,7 +2357,6 @@ return (
 <button onClick={cerrar} className="text-xl px-1 text-gray-700" aria-label="volver">←</button>
 <span className="text-sm font-black">@{npc.handle}</span>
 {npc.rol === "oficial" && <span style={{ color: "#3b82f6" }}>✔</span>}
-{sospechoso && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>{malas} 🚩</span>}
 </div>
 <div className="relative">
 <div className="w-full" style={{ height: 108 }}>
@@ -2361,9 +2378,16 @@ return (
 {estado === "dudoso" && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}>🟡 {t.perfDudoso}</span>}
 {estado === "inmune" && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "#dcfce7", color: "#166534" }}>🛡️ {t.perfInmune}</span>}
 </div>
+{/* El badge de rol ya NO se pone rojo ni dice "cuenta hostil"/"cuenta
+    sospechosa" antes de que el jugador reporte — eso sería regalar el
+    veredicto antes de revisar una sola señal. Antes de reportar, una
+    cuenta bot/villano se ve como cualquier cuenta personal; su rol real
+    (y el conteo de strikes) solo se revela una vez reportada. */}
 <div className="flex gap-2 mt-1.5 flex-wrap">
-<span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: sospechoso ? "#fee2e2" : "#f3f4f6", color: sospechoso ? "#991b1b" : "#374151" }}>{rol.ico} {rol[lang]}</span>
-{npcId === "n0ticias" && g.strikes > 0 && <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>🚩 {g.strikes} strikes</span>}
+<span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: reportada && sospechoso ? "#fee2e2" : "#f3f4f6", color: reportada && sospechoso ? "#991b1b" : "#374151" }}>
+{sospechoso && !reportada ? "👤" : rol.ico} {sospechoso && !reportada ? t.perfCuentaGenerica : rol[lang]}
+</span>
+{reportada && npcId === "n0ticias" && g.strikes > 0 && <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "#fee2e2", color: "#991b1b" }}>🚩 {g.strikes} strikes</span>}
 {reportada && <span className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: "#fef3c7", color: "#92400e" }}>{t.perfReportada}</span>}
 </div>
 <div className="flex gap-6 mt-3">
@@ -2379,7 +2403,7 @@ return (
 {p.enlace && <div className="text-xs mt-0.5" style={{ color: "#1d4ed8" }}>🔗 {p.enlace}</div>}
 <div className="flex gap-2 mt-3">
 <button onClick={() => seguir(npcId)} className="flex-1 py-2.5 rounded-xl text-sm font-bold" style={sigo ? { background: "#f3f4f6", color: "#374151", border: "1px solid #e5e7eb" } : { background: "#1d4ed8", color: "#fff" }}>{sigo ? t.perfSiguiendo : t.perfSeguir}</button>
-{sospechoso && <button onClick={() => reportarCuenta(npcId)} disabled={reportada} className="flex-1 py-2.5 rounded-xl text-sm font-bold" style={{ background: reportada ? "#f3f4f6" : "#fee2e2", color: reportada ? "#9ca3af" : "#991b1b" }}>{t.perfReportar}</button>}
+{npc.rol !== "aliado" && <button onClick={() => reportarCuenta(npcId)} disabled={reportada} className="flex-1 py-2.5 rounded-xl text-sm font-bold" style={{ background: reportada ? "#f3f4f6" : "#fee2e2", color: reportada ? "#9ca3af" : "#991b1b" }}>{t.perfReportar}</button>}
 </div>
 </div>
 <div className="px-4 mt-4">
