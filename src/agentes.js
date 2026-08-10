@@ -265,6 +265,15 @@ export const PERFILES = {
 // ----------------------------------------------------------------------------
 export const BANCO = {
 
+  charla_social: [
+    { npc: "carmen", msg: { es: "¡Ay qué lindo mijo! ❤️ te queremos mucho", en: "Aww how sweet honey! ❤️ we love you too" }, bando: "neutral", tipo_firstdraft: null, motivacion_8p: null, tecnica: "ninguna", mil: null, efecto: "neutral" },
+    { npc: "mama", msg: { es: "😊 igualmente, que tengas bonito día", en: "😊 likewise, have a lovely day" }, bando: "neutral", tipo_firstdraft: null, motivacion_8p: null, tecnica: "ninguna", mil: null, efecto: "neutral" },
+    { npc: "raul", msg: { es: "¡Ahí nos vemos el domingo! 🍻", en: "See you Sunday! 🍻" }, bando: "neutral", tipo_firstdraft: null, motivacion_8p: null, tecnica: "ninguna", mil: null, efecto: "neutral" },
+    { npc: "chuy", msg: { es: "👍 sale, cuídate", en: "👍 alright, take care" }, bando: "neutral", tipo_firstdraft: null, motivacion_8p: null, tecnica: "ninguna", mil: null, efecto: "neutral" },
+    { npc: "padre", msg: { es: "Bendiciones 🙏 gracias por escribir", en: "Blessings 🙏 thanks for writing" }, bando: "neutral", tipo_firstdraft: null, motivacion_8p: null, tecnica: "ninguna", mil: null, efecto: "neutral" },
+    { npc: "mia", msg: { es: "jaja gracias 🥰 ya quiero que sea el domingo", en: "haha thanks 🥰 can't wait for Sunday" }, bando: "neutral", tipo_firstdraft: null, motivacion_8p: null, tecnica: "ninguna", mil: null, efecto: "neutral" },
+  ],
+
   fake_en_grupo: [
     { npc: "carmen", msg: { es: "¡Ay mijo, reenvíenlo por si acaso! 🙏😰 más vale prevenir", en: "Oh honey, forward it just in case! 🙏😰 better safe than sorry" }, bando: "desinfo", tipo_firstdraft: "fabricado", motivacion_8p: "propaganda", tecnica: "miedo", mil: 4, efecto: "cae" },
     { npc: "lupe", msg: { es: "Diosito, yo ya le avisé a todas mis comadres 😔", en: "Oh Lord, I already warned all my friends 😔" }, bando: "desinfo", tipo_firstdraft: "fabricado", motivacion_8p: "propaganda", tecnica: "prueba_social", mil: 4, efecto: "cae" },
@@ -463,13 +472,13 @@ export function construirPrompt(ctx, opts = {}) {
       'sandwich = gives the fact, explains the trick and reinforces it, without repeating the myth or attacking. ' +
       "hechos_fuente = brings a checkable fact/source calmly. empatia = replies with empathy without attacking. " +
       "repite_mito = repeats or amplifies the myth. ataca_persona = insults or mocks whoever believed it. " +
-      "solo_emocion = pure feeling with no facts. cae = sides with the fake. neutral = off-topic or empty. " +
+      "solo_emocion = pure feeling with no facts. cae = sides with the fake. social = greeting/thanks/affection/plans (NOT verification). neutral = off-topic or empty. " +
       "Classify honestly: it is what the game uses to teach."
     : '\n\nADEMÁS clasifica lo que hizo EL JUGADOR en el campo "categoria", juzgando SOLO su último mensaje: ' +
       "sandwich = da el hecho, explica la trampa y refuerza, sin repetir el mito ni atacar. " +
       "hechos_fuente = aporta un dato/fuente verificable con calma. empatia = responde con empatía sin atacar. " +
       "repite_mito = repite o amplifica el mito. ataca_persona = insulta o se burla del que creyó. " +
-      "solo_emocion = puro sentimiento sin datos. cae = le da la razón al fake. neutral = fuera de tema o vacío. " +
+      "solo_emocion = puro sentimiento sin datos. cae = le da la razón al fake. social = saludo/gracias/cariño/planes (NO es verificación). neutral = fuera de tema o vacío. " +
       "Clasifica con honestidad: es lo que el juego usa para enseñar.");
   const campoCat = pideCat ? '"categoria": <una de ' + JSON.stringify(ESTRATEGIAS_USUARIO) + ">, " : "";
   // El perfil del personaje está escrito en español: si solo pedimos inglés en
@@ -526,6 +535,7 @@ export const ESTRATEGIAS_USUARIO = [
   "ataca_persona", // insulta o se burla del que creyó (contraproducente: tiro por la culata)
   "solo_emocion",  // puro grito emocional sin datos (flojo)
   "cae",           // le da la razón al fake / lo valida (mal)
+  "social",        // charla social: saludo, gracias, cariño, planes (NO es verificación)
   "neutral",       // fuera de tema o vacío
 ];
 
@@ -540,6 +550,11 @@ export function clasificarOffline(texto) {
   const t = raw.toLowerCase().trim();
   if (!t) return "neutral";
   const tiene = (arr) => arr.some((w) => t.includes(w));
+
+  // 0) CHARLA SOCIAL: saludos, agradecimientos, cariño, planes. NO es un intento
+  //    de verificar nada — la familia responde normal, Beto no interviene.
+  const social = tiene(["hola", "buenos días", "buenos dias", "buenas", "gracias", "grac", "te quiero", "los quiero", "me alegra", "qué gusto", "que gusto", "felicidades", "saludos", "jaja", "jeje", "cómo están", "como estan", "cómo estás", "como estas", "buen día", "buen dia", "abrazo", "besos", "cuídate", "cuidate", "nos vemos", "va pues", "sale", "órale", "ok", "vale", "yo llevo", "yo voy", "cuenten conmigo", "ahí estaré", "ahi estare",
+    "hi", "hello", "hey", "good morning", "thanks", "thank you", "love you", "so glad", "happy for", "congrats", "congratulations", "lol", "haha", "how are you", "see you", "take care", "hugs", "i'll bring", "i'll go", "count me in", "sounds good"]);
 
   // Las listas llevan español e inglés: la versión del jurado corre en inglés,
   // y este heurístico es justo el que actúa cuando el LLM no está disponible.
@@ -557,12 +572,15 @@ export function clasificarOffline(texto) {
     "false", "fake", "a lie", "don't believe", "dont believe"]);
   const soloEmocion = /[!¡]{2,}/.test(raw) && !fuente && !explica;
 
+  // La verificación gana sobre "social" (un mensaje puede saludar Y verificar).
+  // Pero si SOLO es social (sin señales de verificación), es charla.
   if (insulto) return "ataca_persona";
   if (grita) return "repite_mito";
-  if (daRazon && !fuente) return "cae";
   if (fuente && explica) return "sandwich";
   if (fuente) return "hechos_fuente";
+  if (daRazon && !fuente) return "cae";
   if (empatia) return "empatia";
+  if (social) return "social";
   if (soloEmocion) return "solo_emocion";
   return "neutral";
 }
@@ -584,8 +602,10 @@ export const FEEDBACK_USUARIO = {
     txt: { es: "Puro sentimiento sin datos no convence, primo. Acompáñalo de una fuente que se pueda checar.", en: "Pure feeling with no facts doesn't convince, cousin. Back it with a checkable source." } },
   cae: { ok: false, efecto: "cae", mil: 4,
     txt: { es: "Cuidado: le diste la razón al rumor sin verificar. Antes de validar algo, checa quién lo dice y de cuándo es. 🔎", en: "Careful: you sided with the rumor without verifying. Before validating something, check who says it and when. 🔎" } },
-  neutral: { ok: null, efecto: "neutral", mil: null,
-    txt: { es: "No quedó claro tu punto. Recuerda la receta: hecho + fuente, sin repetir el mito ni atacar.", en: "Your point wasn't clear. Remember the recipe: fact + source, without repeating the myth or attacking." } },
+  social: { ok: null, efecto: "neutral", mil: null, social: true,
+    txt: { es: "", en: "" } },
+  neutral: { ok: null, efecto: "neutral", mil: null, social: true,
+    txt: { es: "", en: "" } },
 };
 
 // STUB de Fase 2 para clasificación (se reemplaza vía puente.implClasificar).
@@ -628,7 +648,8 @@ export async function clasificar(texto, opts = {}) {
 export const SITUACION_POR_CATEGORIA = {
   sandwich: "user_corrige_bien", hechos_fuente: "user_corrige_bien", empatia: "user_corrige_bien",
   repite_mito: "user_comparte_fake", cae: "user_comparte_fake",
-  ataca_persona: "user_corrige_mal", solo_emocion: "user_corrige_mal", neutral: "user_corrige_mal",
+  ataca_persona: "user_corrige_mal", solo_emocion: "user_corrige_mal",
+  social: "charla_social", neutral: "charla_social",
 };
 
 /**
@@ -1054,7 +1075,7 @@ export function construirPromptClasificacion(texto, ctx = {}) {
       "Guía: sandwich = da el hecho, explica la trampa y refuerza, sin repetir el mito ni atacar. " +
       "hechos_fuente = aporta dato/fuente con calma. empatia = responde con empatía sin atacar. " +
       "repite_mito = repite o amplifica el mito. ataca_persona = insulta o se burla. " +
-      "solo_emocion = puro grito sin datos. cae = le da la razón al fake. neutral = fuera de tema o vacío.",
+      "solo_emocion = puro grito sin datos. cae = le da la razón al fake. social = saludo/gracias/cariño/planes. neutral = fuera de tema o vacío.",
     user: JSON.stringify({ respuesta_usuario: String(texto || "").slice(0, 500), contexto: ctx.contexto || null }),
   };
 }
