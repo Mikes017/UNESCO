@@ -28,3 +28,6 @@ actualizacion/
 *.njsproj
 *.sln
 *.sw?
+
+# Documento de trabajo personal, no va al repo
+VIDEO_PROMO.md
