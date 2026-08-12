@@ -1640,8 +1640,14 @@ ng.infodemia = clamp(ng.infodemia - 4, 0, 100);
 ng.siguiendo = ng.siguiendo.filter((x) => x !== npcId);
 coachSay(ng, "beto", { es: "Exacto, primo: aquí el problema no era UN post, era la cuenta entera. Reportar la cuenta le pega a la raíz 🚩", en: "Exactly, cousin: the problem here wasn't ONE post, it was the whole account. Reporting the account hits the root 🚩" }, "rep_cuenta");
 } else {
-ng.cred = clamp(ng.cred - 6, 0, 100);
-coachSay(ng, "beto", { es: "Ojo: esa cuenta no tenía señales de fraude. Reportar a quien no lo merece también hace daño — y te quita credibilidad.", en: "Careful: that account had no fraud signals. Reporting someone who doesn't deserve it does harm too — and costs you credibility." }, "rep_injusto");
+// El reporte injusto NO puede BAJAR la credibilidad del Arquitecto: bajarla a 0
+// es justo la condición de victoria, así que castigar con `cred - 6` era en
+// realidad premiar — se ganaba el juego reportando a la familia entera sin
+// verificar nada. Acusar en falso le SIRVE al Arquitecto: mete ruido y quema tu
+// palabra. Por eso sube la infodemia y él recupera algo de credibilidad.
+ng.infodemia = clamp(ng.infodemia + 4, 0, 100);
+ng.cred = clamp(ng.cred + 3, 0, 100);
+coachSay(ng, "beto", { es: "Ojo: esa cuenta no tenía señales de fraude. Acusar en falso también hace daño — mete ruido, y el Arquitecto se aprovecha de que ya nadie sepa a quién creerle.", en: "Careful: that account had no fraud signals. A false accusation does harm too — it adds noise, and the Architect thrives when nobody knows who to believe anymore." }, "rep_injusto");
 }
 notificar("Instagrama", t.repEnviado);
 return ng;
