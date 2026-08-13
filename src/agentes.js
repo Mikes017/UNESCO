@@ -418,13 +418,21 @@ export async function pedirReaccion(ctx = {}, opts = {}) {
       if (val && !idiomaEquivocado(val.mensaje, ctx.lang)) return { reaccion: val, fuente: "llm" };
       // si el LLM devolvió etiquetas fuera de vocabulario, caemos al banco
     } catch (e) {
-      // red caída / tokens agotados / timeout → apagamos el puente y avisamos
-      puente.online = false;
-      puente.motivo = e && e.motivo ? e.motivo : "red";
+      // FIX: antes, CUALQUIER falla (incluido un tropiezo de red de un solo
+      // mensaje) apagaba el puente por minutos, y el chat entero se sentía
+      // "offline" aunque hubiera cuota de sobra. Ahora solo "tokens" (cuota
+      // real agotada, 429 del proxy) apaga el puente de verdad. Un fallo de
+      // red puntual resuelve ESTE mensaje con el banco, pero el puente sigue
+      // "vivo": el siguiente mensaje vuelve a intentar el LLM sin esperar.
+      const motivo = e && e.motivo ? e.motivo : "red";
+      if (motivo === "tokens") {
+        puente.online = false;
+        puente.motivo = motivo;
+      }
       return {
         reaccion: reaccionOffline(ctx),
         fuente: "offline",
-        alerta: alertaDe(puente.motivo),
+        ...(motivo === "tokens" ? { alerta: alertaDe(motivo) } : {}),
       };
     }
   }
@@ -626,9 +634,9 @@ export async function clasificar(texto, opts = {}) {
       const cat = validarClasificacion(cruda && cruda.categoria);
       if (cat) return { categoria: cat, fuente: "llm" };
     } catch (e) {
-      puente.online = false;
-      puente.motivo = e && e.motivo ? e.motivo : "red";
-      return { categoria: clasificarOffline(texto), fuente: "offline", alerta: alertaDe(puente.motivo) };
+      const motivo = e && e.motivo ? e.motivo : "red";
+      if (motivo === "tokens") { puente.online = false; puente.motivo = motivo; }
+      return { categoria: clasificarOffline(texto), fuente: "offline", ...(motivo === "tokens" ? { alerta: alertaDe(motivo) } : {}) };
     }
   }
   return { categoria: clasificarOffline(texto), fuente: "offline" };
@@ -688,9 +696,9 @@ export async function reaccionarYClasificar(ctx = {}, opts = {}) {
         if (deBanco) return { categoria, reaccion: deBanco, fuente: "offline" };
       }
     } catch (e) {
-      puente.online = false;
-      puente.motivo = e && e.motivo ? e.motivo : "red";
-      return offline(alertaDe(puente.motivo));
+      const motivo = e && e.motivo ? e.motivo : "red";
+      if (motivo === "tokens") { puente.online = false; puente.motivo = motivo; }
+      return offline(motivo === "tokens" ? alertaDe(motivo) : undefined);
     }
   }
   return offline();
